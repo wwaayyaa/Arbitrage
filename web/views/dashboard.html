@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <!-- import CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <style>
+        .el-table .danger-cell {
+            background: #f5bec9;
+        }
+
+        .el-table .success-cell {
+            background: #f0f9eb;
+        }
+    </style>
+
+</head>
+<body>
+<div id="app">
+    <el-row>
+        <el-col :span="24"><h3>价格监控</h3></el-col>
+    </el-row>
+    <!--    <el-button-->
+    <!--            @click="visible = true">Button-->
+    <!--    </el-button>-->
+    <!--    <el-dialog :visible.sync="visible" title="Hello world">-->
+    <!--        <p>Try Element</p>-->
+    <!--    </el-dialog>-->
+    <template>
+        <el-table
+                :data="tableData"
+                border
+                :cell-class-name="tableCellClassName"
+                style="width: 100%">
+            <el-table-column
+                    prop="pair"
+                    sortable
+                    label="交易对"
+                    fixed="left"
+                    width="180">
+            </el-table-column>
+            <el-table-column
+                    label="Uniswap"
+            >
+                <template slot-scope="scope">
+                    <h1>{{ scope.row.univ2.price }} {{ scope.row.univ2.priceChange }}</h1>
+
+                    <p>{{ scope.row.univ2.name0 }}: {{ scope.row.univ2.amount0 }} {{ scope.row.univ2.amount0Change
+                        }} / {{ scope.row.univ2.name1 }}: {{ scope.row.univ2.amount1 }} {{ scope.row.univ2.amount1Change
+                        }}</p>
+                </template>
+            </el-table-column>
+            <el-table-column
+                    label="Sushiswap">
+                <template slot-scope="scope">
+                    <h1>{{ scope.row.sushi.price }} {{ scope.row.sushi.priceChange }}</h1>
+
+                    <p>{{ scope.row.sushi.name0 }}: {{ scope.row.sushi.amount0 }} {{ scope.row.sushi.amount0Change
+                        }} / {{ scope.row.sushi.name1 }}: {{ scope.row.sushi.amount1 }} {{ scope.row.sushi.amount1Change
+                        }}</p>
+                </template>
+            </el-table-column>
+        </el-table>
+    </template>
+</div>
+</body>
+<!-- import Vue before Element -->
+<script src="https://unpkg.com/vue/dist/vue.js"></script>
+<!-- import JavaScript -->
+<script src="https://unpkg.com/element-ui/lib/index.js"></script>
+<script src="/s/socket.io.js"></script>
+<script>
+    let cc = <%- cc %>; // < 头大;
+    //给定exchange列表
+    let exchanges = ['univ2', 'sushi'];
+    let tableData = [];
+    tableData = [
+        // {
+        //     pair: 'eth_dai',
+        //     univ2: {
+        //         reserve0: 3289289824982,
+        //         reserve1: 123283829389283,
+        //         price: 0.123
+        //     },
+        //     sushi: {
+        //         reserve0: 3289289824982,
+        //         reserve1: 123283829389283,
+        //         price: 0.123
+        //     }
+        // }
+    ];
+    let pushData = function (exchangeName, pairName, info) {
+        //判断是否有交易对
+        let existPair = false;
+        let row;
+        for (let i = 0; i < this.tableData.length; i++) {
+            if (this.tableData[i].pair == pairName) {
+                existPair = true;
+                row = this.tableData[i];
+                for (let e in exchanges) {
+                    if (exchanges[e] == exchangeName) {
+                        info.amount0Change = "";
+                        info.amount1Change = "";
+                        info.color = "";
+                        if (info.amount0 > row[exchangeName].amount0) {
+                            info.amount0Change = "↑";
+                        } else if (info.amount0 < row[exchangeName].amount0) {
+                            info.amount0Change = "↓";
+                        }
+                        if (info.amount1 > row[exchangeName].amount1) {
+                            info.amount1Change = "↑";
+                        } else if (info.amount1 < row[exchangeName].amount1) {
+                            info.amount1Change = "↓";
+                        }
+                        if (info.price > row[exchangeName].price) {
+                            info.color = "success-cell";
+                            info.priceChange = "↑"
+                        } else if (info.price < row[exchangeName].price) {
+                            info.color = "danger-cell";
+                            info.priceChange = "↓"
+                        }
+                        row[exchangeName] = info;
+                        this.$set(this.tableData, i, row);
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+        if (!existPair) {
+            row = {pair: pairName};
+            //添加数据
+            for (let e in exchanges) {
+                if (exchanges[e] == exchangeName) {
+                    row[exchangeName] = info;
+                } else {
+                    row[exchanges[e]] = {
+                        reserve0: '-',
+                        reserve1: '-',
+                        price: '-'
+                    }
+                }
+            }
+            this.tableData.push(row);
+        }
+    };
+
+    let vue = new Vue({
+        el: '#app',
+        data: function () {
+            return {
+                tableData: tableData,
+            }
+        },
+        methods: {
+            pushData: pushData,
+            tableCellClassName({row, column, rowIndex}){
+                console.log('!!!',column);
+                let _name = "";
+                if(column.label == "Uniswap"){
+                    _name = "univ2";
+                    console.log('~~~', row)
+                }
+                if(column.label == "Sushiswap"){
+                    _name = "sushi";
+                    console.log('~~~', row)
+                }
+                if (_name == ""){
+                    return "";
+                }
+                return row[_name].hasOwnProperty('color') ? row[_name].color : "";
+            },
+        }
+    });
+
+    var socket = io('localhost:4000', {path: '/s'});
+    socket.on('price', data => {
+        //把价格转换成二维数组中的一个元素
+        vue.pushData(data.exchangeName, data.pairName, data.info);
+    });
+
+
+</script>
+</html>

@@ -29,7 +29,11 @@ Exchange.prototype.setPair = function (pair) {
 
 Exchange.prototype.getPriceInfo = async function () {
     let reserves = await this.pairContract.methods.getReserves().call({from: this.account.address});
-    return {reserve0: reserves[0], reserve1: reserves[1], price: reserves[1] == 0 ? 0 : reserves[0] / reserves[1]}
+    return {
+        reserve0: reserves[0],
+        reserve1: reserves[1],
+        // price: reserves[1] == 0 ? 0 : reserves[0] / reserves[1]
+    }
 };
 
 module.exports = Exchange;
