@@ -45,9 +45,9 @@
                 <template slot-scope="scope">
                     <h1>{{ scope.row.univ2.price }} {{ scope.row.univ2.priceChange }}</h1>
 
-                    <p>{{ scope.row.univ2.name0 }}: {{ scope.row.univ2.amount0 }} {{ scope.row.univ2.amount0Change
-                        }} / {{ scope.row.univ2.name1 }}: {{ scope.row.univ2.amount1 }} {{ scope.row.univ2.amount1Change
-                        }}</p>
+                    <h5>{{ scope.row.univ2.name0 }}: {{ scope.row.univ2.amount0 }} {{ scope.row.univ2.amount0Change
+                        }}<br>{{ scope.row.univ2.name1 }}: {{ scope.row.univ2.amount1 }} {{ scope.row.univ2.amount1Change
+                        }}</h5>
                 </template>
             </el-table-column>
             <el-table-column
@@ -55,9 +55,16 @@
                 <template slot-scope="scope">
                     <h1>{{ scope.row.sushi.price }} {{ scope.row.sushi.priceChange }}</h1>
 
-                    <p>{{ scope.row.sushi.name0 }}: {{ scope.row.sushi.amount0 }} {{ scope.row.sushi.amount0Change
-                        }} / {{ scope.row.sushi.name1 }}: {{ scope.row.sushi.amount1 }} {{ scope.row.sushi.amount1Change
-                        }}</p>
+                    <h5>{{ scope.row.sushi.name0 }}: {{ scope.row.sushi.amount0 }} {{ scope.row.sushi.amount0Change
+                        }}<br>{{ scope.row.sushi.name1 }}: {{ scope.row.sushi.amount1 }} {{ scope.row.sushi.amount1Change
+                        }}</h5>
+                </template>
+            </el-table-column>
+            <el-table-column
+                label="最大套利空间%"
+            >
+                <template slot-scope="scope">
+                    <h1>{{ scope.row.arbitrageRate }}</h1>
                 </template>
             </el-table-column>
         </el-table>
@@ -97,8 +104,10 @@
             if (this.tableData[i].pair == pairName) {
                 existPair = true;
                 row = this.tableData[i];
+                let max = 0, min = 0;
                 for (let e in exchanges) {
                     if (exchanges[e] == exchangeName) {
+                        //匹配到cell
                         info.amount0Change = "";
                         info.amount1Change = "";
                         info.color = "";
@@ -120,10 +129,31 @@
                             info.priceChange = "↓"
                         }
                         row[exchangeName] = info;
-                        this.$set(this.tableData, i, row);
-                        break;
+
+                        // this.$set(this.tableData, i, row);
+                        // break;
                     }
+                    let _tmp = 0;
+                    if(row[exchanges[e]].price != ''){
+                        _tmp = row[exchanges[e]].price;
+                    }
+                    if (min == 0){
+                        min = _tmp;
+                    }
+                    if (max == 0){
+                        max = _tmp;
+                    }
+                    if (min > _tmp){
+                        min = _tmp;
+                    }
+                    if(max < _tmp){
+                        max = _tmp;
+                    }
+
+                    console.log(max, min);
+                    row.arbitrageRate = min == 0 ? 0 : ((max / min - 1) * 100).toFixed(6);
                 }
+                this.$set(this.tableData, i, row);
                 break;
             }
         }
@@ -137,7 +167,7 @@
                     row[exchanges[e]] = {
                         reserve0: '-',
                         reserve1: '-',
-                        price: '-'
+                        price: ''
                     }
                 }
             }
@@ -155,15 +185,12 @@
         methods: {
             pushData: pushData,
             tableCellClassName({row, column, rowIndex}){
-                console.log('!!!',column);
                 let _name = "";
                 if(column.label == "Uniswap"){
                     _name = "univ2";
-                    console.log('~~~', row)
                 }
                 if(column.label == "Sushiswap"){
                     _name = "sushi";
-                    console.log('~~~', row)
                 }
                 if (_name == ""){
                     return "";
