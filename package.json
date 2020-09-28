@@ -1,0 +1,26 @@
+{
+  "name": "arbitrage",
+  "version": "1.0.0",
+  "description": "",
+  "mainxx": "truffle-config.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@uniswap/lib": "^1.1.4",
+    "@uniswap/sdk": "^3.0.3",
+    "@uniswap/v2-core": "^1.0.1",
+    "web3": "^1.3.0"
+  },
+  "devDependencies": {
+    "@openzeppelin/contracts": "^3.0.0",
+    "@truffle/hdwallet-provider": "^1.1.0",
+    "dotenv": "^8.2.0",
+    "truffle": "^5.1.45"
+  }
+}
