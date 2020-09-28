@@ -51,7 +51,7 @@ async function collect(exchangeName, pairName, socket) {
         //socketio
         socket.emit('collected', {exchangeName, pairName, info});
 
-        await sleep(5000);
+        await sleep(4000);
     }
 }
 
