@@ -663,9 +663,9 @@
       },
       {
         "timestamp": 1601373960,
-        "univ2Price": "354.19432520",
+        "univ2Price": "354.19273289",
         "sushiPrice": "354.91115168",
-        "arbitrageRate": "0.202382"
+        "arbitrageRate": "0.202833"
       }
     ],
     "wbtc-eth": [
@@ -1999,9 +1999,9 @@
       },
       {
         "timestamp": 1601373960,
-        "univ2Price": "0.00282281",
+        "univ2Price": "0.00282282",
         "sushiPrice": "0.00281973",
-        "arbitrageRate": "0.109230"
+        "arbitrageRate": "0.109585"
       }
     ],
     "dai-eth": [
