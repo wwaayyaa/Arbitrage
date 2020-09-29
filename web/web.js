@@ -20,6 +20,9 @@ db.defaults({
         'eth-usdt': [],
         'dai-eth': [],
         'uni-eth': [],
+        'comp-eth': [],
+        'lend-eth': [],
+        'yfi-eth': [],
     }
 }).write();
 

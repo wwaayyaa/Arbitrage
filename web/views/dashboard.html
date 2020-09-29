@@ -12,6 +12,9 @@
         .el-table .success-cell {
             background: #f0f9eb;
         }
+        .el-table h1,h5{
+            margin: 3px;
+        }
     </style>
 
 </head>
@@ -25,13 +28,14 @@
                 :data="tableData"
                 border
                 :cell-class-name="tableCellClassName"
+                :cell-stype="{padding:'1px'}"
                 style="width: 100%">
             <el-table-column
                     prop="pair"
                     sortable
                     label="交易对"
                     fixed="left"
-                    width="180">
+                    width="120">
             </el-table-column>
             <el-table-column
                     label="Uniswap"
@@ -55,6 +59,8 @@
                 </template>
             </el-table-column>
             <el-table-column
+                sortable
+                :sort-by="'arbitrageRate'"
                 label="最大套利空间%"
             >
                 <template slot-scope="scope">
@@ -248,7 +254,7 @@
                 type: 'value',
                 scale: true,
                 name: '价差%',
-                max: 5,
+                max: 2,
                 min: 0,
                 boundaryGap: [0.2, 0.2]
             }],

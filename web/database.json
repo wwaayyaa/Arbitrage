@@ -501,9 +501,171 @@
       },
       {
         "timestamp": 1601372340,
-        "univ2Price": "354.68652542",
+        "univ2Price": "354.67929952",
         "sushiPrice": "354.93023587",
-        "arbitrageRate": "0.068712"
+        "arbitrageRate": "0.070750"
+      },
+      {
+        "timestamp": 1601372400,
+        "univ2Price": "354.65603827",
+        "sushiPrice": "354.93023587",
+        "arbitrageRate": "0.077314"
+      },
+      {
+        "timestamp": 1601372460,
+        "univ2Price": "354.82562099",
+        "sushiPrice": "354.93023587",
+        "arbitrageRate": "0.029483"
+      },
+      {
+        "timestamp": 1601372520,
+        "univ2Price": "354.80140026",
+        "sushiPrice": "354.91115168",
+        "arbitrageRate": "0.030933"
+      },
+      {
+        "timestamp": 1601372580,
+        "univ2Price": "354.82745877",
+        "sushiPrice": "354.91115168",
+        "arbitrageRate": "0.023587"
+      },
+      {
+        "timestamp": 1601372640,
+        "univ2Price": "354.82745877",
+        "sushiPrice": "354.91115168",
+        "arbitrageRate": "0.023587"
+      },
+      {
+        "timestamp": 1601372700,
+        "univ2Price": "354.82656735",
+        "sushiPrice": "354.91115168",
+        "arbitrageRate": "0.023838"
+      },
+      {
+        "timestamp": 1601372760,
+        "univ2Price": "354.82981672",
+        "sushiPrice": "354.91115168",
+        "arbitrageRate": "0.022922"
+      },
+      {
+        "timestamp": 1601372820,
+        "univ2Price": "354.37228371",
+        "sushiPrice": "354.91115168",
+        "arbitrageRate": "0.152063"
+      },
+      {
+        "timestamp": 1601372880,
+        "univ2Price": "354.34608154",
+        "sushiPrice": "354.91115168",
+        "arbitrageRate": "0.159468"
+      },
+      {
+        "timestamp": 1601372940,
+        "univ2Price": "354.35513118",
+        "sushiPrice": "354.91115168",
+        "arbitrageRate": "0.156911"
+      },
+      {
+        "timestamp": 1601373000,
+        "univ2Price": "354.37941607",
+        "sushiPrice": "354.91115168",
+        "arbitrageRate": "0.150047"
+      },
+      {
+        "timestamp": 1601373060,
+        "univ2Price": "354.26401150",
+        "sushiPrice": "354.91115168",
+        "arbitrageRate": "0.182672"
+      },
+      {
+        "timestamp": 1601373120,
+        "univ2Price": "354.27502849",
+        "sushiPrice": "354.91115168",
+        "arbitrageRate": "0.179556"
+      },
+      {
+        "timestamp": 1601373180,
+        "univ2Price": "354.28152959",
+        "sushiPrice": "354.91115168",
+        "arbitrageRate": "0.177718"
+      },
+      {
+        "timestamp": 1601373240,
+        "univ2Price": "354.27837353",
+        "sushiPrice": "354.91115168",
+        "arbitrageRate": "0.178610"
+      },
+      {
+        "timestamp": 1601373300,
+        "univ2Price": "354.29569371",
+        "sushiPrice": "354.91115168",
+        "arbitrageRate": "0.173713"
+      },
+      {
+        "timestamp": 1601373360,
+        "univ2Price": "354.29134110",
+        "sushiPrice": "354.91115168",
+        "arbitrageRate": "0.174944"
+      },
+      {
+        "timestamp": 1601373420,
+        "univ2Price": "354.28882741",
+        "sushiPrice": "354.91115168",
+        "arbitrageRate": "0.175655"
+      },
+      {
+        "timestamp": 1601373480,
+        "univ2Price": "354.27797478",
+        "sushiPrice": "354.91115168",
+        "arbitrageRate": "0.178723"
+      },
+      {
+        "timestamp": 1601373540,
+        "univ2Price": "354.27230262",
+        "sushiPrice": "354.91115168",
+        "arbitrageRate": "0.180327"
+      },
+      {
+        "timestamp": 1601373600,
+        "univ2Price": "354.27230262",
+        "sushiPrice": "354.91115168",
+        "arbitrageRate": "0.180327"
+      },
+      {
+        "timestamp": 1601373660,
+        "univ2Price": "354.29868518",
+        "sushiPrice": "354.91115168",
+        "arbitrageRate": "0.172867"
+      },
+      {
+        "timestamp": 1601373720,
+        "univ2Price": "354.29868518",
+        "sushiPrice": "354.91115168",
+        "arbitrageRate": "0.172867"
+      },
+      {
+        "timestamp": 1601373780,
+        "univ2Price": "354.29868518",
+        "sushiPrice": "354.91115168",
+        "arbitrageRate": "0.172867"
+      },
+      {
+        "timestamp": 1601373840,
+        "univ2Price": "354.19976664",
+        "sushiPrice": "354.91115168",
+        "arbitrageRate": "0.200843"
+      },
+      {
+        "timestamp": 1601373900,
+        "univ2Price": "354.19485588",
+        "sushiPrice": "354.91115168",
+        "arbitrageRate": "0.202232"
+      },
+      {
+        "timestamp": 1601373960,
+        "univ2Price": "354.19432520",
+        "sushiPrice": "354.91115168",
+        "arbitrageRate": "0.202382"
       }
     ],
     "wbtc-eth": [
@@ -1010,6 +1172,168 @@
         "univ2Price": "0.03312586",
         "sushiPrice": "0.03300221",
         "arbitrageRate": "0.374672"
+      },
+      {
+        "timestamp": 1601372400,
+        "univ2Price": "0.03312586",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.374672"
+      },
+      {
+        "timestamp": 1601372460,
+        "univ2Price": "0.03312586",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.374672"
+      },
+      {
+        "timestamp": 1601372520,
+        "univ2Price": "0.03313289",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.395973"
+      },
+      {
+        "timestamp": 1601372580,
+        "univ2Price": "0.03313289",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.395973"
+      },
+      {
+        "timestamp": 1601372640,
+        "univ2Price": "0.03313150",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.391762"
+      },
+      {
+        "timestamp": 1601372700,
+        "univ2Price": "0.03313150",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.391762"
+      },
+      {
+        "timestamp": 1601372760,
+        "univ2Price": "0.03313150",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.391762"
+      },
+      {
+        "timestamp": 1601372820,
+        "univ2Price": "0.03313980",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.416911"
+      },
+      {
+        "timestamp": 1601372880,
+        "univ2Price": "0.03313836",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.412548"
+      },
+      {
+        "timestamp": 1601372940,
+        "univ2Price": "0.03313836",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.412548"
+      },
+      {
+        "timestamp": 1601373000,
+        "univ2Price": "0.03313836",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.412548"
+      },
+      {
+        "timestamp": 1601373060,
+        "univ2Price": "0.03313836",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.412548"
+      },
+      {
+        "timestamp": 1601373120,
+        "univ2Price": "0.03313836",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.412548"
+      },
+      {
+        "timestamp": 1601373180,
+        "univ2Price": "0.03313836",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.412548"
+      },
+      {
+        "timestamp": 1601373240,
+        "univ2Price": "0.03313836",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.412548"
+      },
+      {
+        "timestamp": 1601373300,
+        "univ2Price": "0.03314103",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.420638"
+      },
+      {
+        "timestamp": 1601373360,
+        "univ2Price": "0.03314099",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.420517"
+      },
+      {
+        "timestamp": 1601373420,
+        "univ2Price": "0.03314099",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.420517"
+      },
+      {
+        "timestamp": 1601373480,
+        "univ2Price": "0.03314099",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.420517"
+      },
+      {
+        "timestamp": 1601373540,
+        "univ2Price": "0.03314099",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.420517"
+      },
+      {
+        "timestamp": 1601373600,
+        "univ2Price": "0.03314099",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.420517"
+      },
+      {
+        "timestamp": 1601373660,
+        "univ2Price": "0.03314099",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.420517"
+      },
+      {
+        "timestamp": 1601373720,
+        "univ2Price": "0.03314099",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.420517"
+      },
+      {
+        "timestamp": 1601373780,
+        "univ2Price": "0.03314099",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.420517"
+      },
+      {
+        "timestamp": 1601373840,
+        "univ2Price": "0.03313913",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.414881"
+      },
+      {
+        "timestamp": 1601373900,
+        "univ2Price": "0.03313913",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.414881"
+      },
+      {
+        "timestamp": 1601373960,
+        "univ2Price": "0.03313812",
+        "sushiPrice": "0.03300221",
+        "arbitrageRate": "0.411821"
       }
     ],
     "eth-usdt": [
@@ -1513,9 +1837,171 @@
       },
       {
         "timestamp": 1601372340,
-        "univ2Price": "0.00282118",
+        "univ2Price": "0.00282112",
         "sushiPrice": "0.00281973",
-        "arbitrageRate": "0.051423"
+        "arbitrageRate": "0.049295"
+      },
+      {
+        "timestamp": 1601372400,
+        "univ2Price": "0.00282078",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.037238"
+      },
+      {
+        "timestamp": 1601372460,
+        "univ2Price": "0.00282082",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.038656"
+      },
+      {
+        "timestamp": 1601372520,
+        "univ2Price": "0.00282063",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.031918"
+      },
+      {
+        "timestamp": 1601372580,
+        "univ2Price": "0.00282075",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.036174"
+      },
+      {
+        "timestamp": 1601372640,
+        "univ2Price": "0.00282142",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.059935"
+      },
+      {
+        "timestamp": 1601372700,
+        "univ2Price": "0.00282143",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.060289"
+      },
+      {
+        "timestamp": 1601372760,
+        "univ2Price": "0.00282098",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.044330"
+      },
+      {
+        "timestamp": 1601372820,
+        "univ2Price": "0.00282095",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.043267"
+      },
+      {
+        "timestamp": 1601372880,
+        "univ2Price": "0.00282084",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.039365"
+      },
+      {
+        "timestamp": 1601372940,
+        "univ2Price": "0.00282072",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.035110"
+      },
+      {
+        "timestamp": 1601373000,
+        "univ2Price": "0.00282068",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.033691"
+      },
+      {
+        "timestamp": 1601373060,
+        "univ2Price": "0.00281992",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.006738"
+      },
+      {
+        "timestamp": 1601373120,
+        "univ2Price": "0.00281996",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.008157"
+      },
+      {
+        "timestamp": 1601373180,
+        "univ2Price": "0.00281981",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.002837"
+      },
+      {
+        "timestamp": 1601373240,
+        "univ2Price": "0.00281980",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.002483"
+      },
+      {
+        "timestamp": 1601373300,
+        "univ2Price": "0.00281996",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.008157"
+      },
+      {
+        "timestamp": 1601373360,
+        "univ2Price": "0.00282013",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.014186"
+      },
+      {
+        "timestamp": 1601373420,
+        "univ2Price": "0.00282017",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.015604"
+      },
+      {
+        "timestamp": 1601373480,
+        "univ2Price": "0.00282011",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.013476"
+      },
+      {
+        "timestamp": 1601373540,
+        "univ2Price": "0.00282010",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.013122"
+      },
+      {
+        "timestamp": 1601373600,
+        "univ2Price": "0.00282301",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.116323"
+      },
+      {
+        "timestamp": 1601373660,
+        "univ2Price": "0.00282314",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.120934"
+      },
+      {
+        "timestamp": 1601373720,
+        "univ2Price": "0.00282338",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.129445"
+      },
+      {
+        "timestamp": 1601373780,
+        "univ2Price": "0.00282338",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.129445"
+      },
+      {
+        "timestamp": 1601373840,
+        "univ2Price": "0.00282243",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.095754"
+      },
+      {
+        "timestamp": 1601373900,
+        "univ2Price": "0.00282260",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.101783"
+      },
+      {
+        "timestamp": 1601373960,
+        "univ2Price": "0.00282281",
+        "sushiPrice": "0.00281973",
+        "arbitrageRate": "0.109230"
       }
     ],
     "dai-eth": [
@@ -2019,9 +2505,171 @@
       },
       {
         "timestamp": 1601372340,
-        "univ2Price": "351.08394575",
+        "univ2Price": "351.08449188",
         "sushiPrice": "351.12447571",
-        "arbitrageRate": "0.011544"
+        "arbitrageRate": "0.011389"
+      },
+      {
+        "timestamp": 1601372400,
+        "univ2Price": "351.08449188",
+        "sushiPrice": "351.12447571",
+        "arbitrageRate": "0.011389"
+      },
+      {
+        "timestamp": 1601372460,
+        "univ2Price": "351.06212169",
+        "sushiPrice": "351.12447571",
+        "arbitrageRate": "0.017762"
+      },
+      {
+        "timestamp": 1601372520,
+        "univ2Price": "351.07177808",
+        "sushiPrice": "351.08535711",
+        "arbitrageRate": "0.003868"
+      },
+      {
+        "timestamp": 1601372580,
+        "univ2Price": "351.12143429",
+        "sushiPrice": "351.08535711",
+        "arbitrageRate": "0.010276"
+      },
+      {
+        "timestamp": 1601372640,
+        "univ2Price": "351.11953763",
+        "sushiPrice": "351.08535711",
+        "arbitrageRate": "0.009736"
+      },
+      {
+        "timestamp": 1601372700,
+        "univ2Price": "351.11953763",
+        "sushiPrice": "351.08535711",
+        "arbitrageRate": "0.009736"
+      },
+      {
+        "timestamp": 1601372760,
+        "univ2Price": "351.12559377",
+        "sushiPrice": "351.08535711",
+        "arbitrageRate": "0.011461"
+      },
+      {
+        "timestamp": 1601372820,
+        "univ2Price": "351.12107324",
+        "sushiPrice": "351.08535711",
+        "arbitrageRate": "0.010173"
+      },
+      {
+        "timestamp": 1601372880,
+        "univ2Price": "351.13556540",
+        "sushiPrice": "351.08411204",
+        "arbitrageRate": "0.014656"
+      },
+      {
+        "timestamp": 1601372940,
+        "univ2Price": "351.13556540",
+        "sushiPrice": "351.08411204",
+        "arbitrageRate": "0.014656"
+      },
+      {
+        "timestamp": 1601373000,
+        "univ2Price": "351.13116144",
+        "sushiPrice": "351.08411204",
+        "arbitrageRate": "0.013401"
+      },
+      {
+        "timestamp": 1601373060,
+        "univ2Price": "351.13116144",
+        "sushiPrice": "351.08411204",
+        "arbitrageRate": "0.013401"
+      },
+      {
+        "timestamp": 1601373120,
+        "univ2Price": "351.13116144",
+        "sushiPrice": "351.10691525",
+        "arbitrageRate": "0.006906"
+      },
+      {
+        "timestamp": 1601373180,
+        "univ2Price": "351.11085759",
+        "sushiPrice": "351.10691525",
+        "arbitrageRate": "0.001123"
+      },
+      {
+        "timestamp": 1601373240,
+        "univ2Price": "351.11769845",
+        "sushiPrice": "351.10691525",
+        "arbitrageRate": "0.003071"
+      },
+      {
+        "timestamp": 1601373300,
+        "univ2Price": "351.12853467",
+        "sushiPrice": "351.09044072",
+        "arbitrageRate": "0.010850"
+      },
+      {
+        "timestamp": 1601373360,
+        "univ2Price": "351.12629556",
+        "sushiPrice": "351.09044072",
+        "arbitrageRate": "0.010212"
+      },
+      {
+        "timestamp": 1601373420,
+        "univ2Price": "351.13196331",
+        "sushiPrice": "351.09044072",
+        "arbitrageRate": "0.011827"
+      },
+      {
+        "timestamp": 1601373480,
+        "univ2Price": "351.13236260",
+        "sushiPrice": "351.09044072",
+        "arbitrageRate": "0.011940"
+      },
+      {
+        "timestamp": 1601373540,
+        "univ2Price": "351.13236260",
+        "sushiPrice": "351.09044072",
+        "arbitrageRate": "0.011940"
+      },
+      {
+        "timestamp": 1601373600,
+        "univ2Price": "351.13801226",
+        "sushiPrice": "351.09044072",
+        "arbitrageRate": "0.013550"
+      },
+      {
+        "timestamp": 1601373660,
+        "univ2Price": "351.14550463",
+        "sushiPrice": "351.09044072",
+        "arbitrageRate": "0.015684"
+      },
+      {
+        "timestamp": 1601373720,
+        "univ2Price": "351.15246580",
+        "sushiPrice": "351.09044072",
+        "arbitrageRate": "0.017666"
+      },
+      {
+        "timestamp": 1601373780,
+        "univ2Price": "351.15246580",
+        "sushiPrice": "351.09044072",
+        "arbitrageRate": "0.017666"
+      },
+      {
+        "timestamp": 1601373840,
+        "univ2Price": "351.14569742",
+        "sushiPrice": "351.09044072",
+        "arbitrageRate": "0.015739"
+      },
+      {
+        "timestamp": 1601373900,
+        "univ2Price": "351.14569742",
+        "sushiPrice": "351.09044072",
+        "arbitrageRate": "0.015739"
+      },
+      {
+        "timestamp": 1601373960,
+        "univ2Price": "351.14569742",
+        "sushiPrice": "351.09044072",
+        "arbitrageRate": "0.015739"
       }
     ],
     "uni-eth": [
@@ -2525,9 +3173,171 @@
       },
       {
         "timestamp": 1601372340,
-        "univ2Price": "81.63835698",
+        "univ2Price": "81.65295199",
         "sushiPrice": "81.35418813",
-        "arbitrageRate": "0.349298"
+        "arbitrageRate": "0.367238"
+      },
+      {
+        "timestamp": 1601372400,
+        "univ2Price": "81.65295199",
+        "sushiPrice": "81.35418813",
+        "arbitrageRate": "0.367238"
+      },
+      {
+        "timestamp": 1601372460,
+        "univ2Price": "81.62475761",
+        "sushiPrice": "81.35418813",
+        "arbitrageRate": "0.332582"
+      },
+      {
+        "timestamp": 1601372520,
+        "univ2Price": "81.43346265",
+        "sushiPrice": "81.35418813",
+        "arbitrageRate": "0.097444"
+      },
+      {
+        "timestamp": 1601372580,
+        "univ2Price": "81.50402434",
+        "sushiPrice": "81.35418813",
+        "arbitrageRate": "0.184178"
+      },
+      {
+        "timestamp": 1601372640,
+        "univ2Price": "81.50402434",
+        "sushiPrice": "81.35418813",
+        "arbitrageRate": "0.184178"
+      },
+      {
+        "timestamp": 1601372700,
+        "univ2Price": "81.67807440",
+        "sushiPrice": "81.71259303",
+        "arbitrageRate": "0.042262"
+      },
+      {
+        "timestamp": 1601372760,
+        "univ2Price": "81.68248801",
+        "sushiPrice": "81.71259303",
+        "arbitrageRate": "0.036856"
+      },
+      {
+        "timestamp": 1601372820,
+        "univ2Price": "81.43316558",
+        "sushiPrice": "81.71259303",
+        "arbitrageRate": "0.343137"
+      },
+      {
+        "timestamp": 1601372880,
+        "univ2Price": "81.44915271",
+        "sushiPrice": "81.71259303",
+        "arbitrageRate": "0.323441"
+      },
+      {
+        "timestamp": 1601372940,
+        "univ2Price": "81.44991866",
+        "sushiPrice": "81.71259303",
+        "arbitrageRate": "0.322498"
+      },
+      {
+        "timestamp": 1601373000,
+        "univ2Price": "81.47777302",
+        "sushiPrice": "81.71259303",
+        "arbitrageRate": "0.288201"
+      },
+      {
+        "timestamp": 1601373060,
+        "univ2Price": "81.59228309",
+        "sushiPrice": "81.71259303",
+        "arbitrageRate": "0.147453"
+      },
+      {
+        "timestamp": 1601373120,
+        "univ2Price": "81.72038855",
+        "sushiPrice": "81.71259303",
+        "arbitrageRate": "0.009540"
+      },
+      {
+        "timestamp": 1601373180,
+        "univ2Price": "81.83551068",
+        "sushiPrice": "82.06906008",
+        "arbitrageRate": "0.285389"
+      },
+      {
+        "timestamp": 1601373240,
+        "univ2Price": "81.85460202",
+        "sushiPrice": "82.06906008",
+        "arbitrageRate": "0.261999"
+      },
+      {
+        "timestamp": 1601373300,
+        "univ2Price": "81.86788426",
+        "sushiPrice": "82.06906008",
+        "arbitrageRate": "0.245732"
+      },
+      {
+        "timestamp": 1601373360,
+        "univ2Price": "81.91395116",
+        "sushiPrice": "82.06906008",
+        "arbitrageRate": "0.189356"
+      },
+      {
+        "timestamp": 1601373420,
+        "univ2Price": "81.91395116",
+        "sushiPrice": "82.06906008",
+        "arbitrageRate": "0.189356"
+      },
+      {
+        "timestamp": 1601373480,
+        "univ2Price": "82.04023435",
+        "sushiPrice": "82.06906008",
+        "arbitrageRate": "0.035136"
+      },
+      {
+        "timestamp": 1601373540,
+        "univ2Price": "82.04222247",
+        "sushiPrice": "82.06906008",
+        "arbitrageRate": "0.032712"
+      },
+      {
+        "timestamp": 1601373600,
+        "univ2Price": "82.12614691",
+        "sushiPrice": "82.06906008",
+        "arbitrageRate": "0.069560"
+      },
+      {
+        "timestamp": 1601373660,
+        "univ2Price": "82.14976546",
+        "sushiPrice": "82.06906008",
+        "arbitrageRate": "0.098338"
+      },
+      {
+        "timestamp": 1601373720,
+        "univ2Price": "82.14976546",
+        "sushiPrice": "82.06906008",
+        "arbitrageRate": "0.098338"
+      },
+      {
+        "timestamp": 1601373780,
+        "univ2Price": "82.14976546",
+        "sushiPrice": "82.06906008",
+        "arbitrageRate": "0.098338"
+      },
+      {
+        "timestamp": 1601373840,
+        "univ2Price": "82.14976546",
+        "sushiPrice": "82.06906008",
+        "arbitrageRate": "0.098338"
+      },
+      {
+        "timestamp": 1601373900,
+        "univ2Price": "82.15172820",
+        "sushiPrice": "82.06906008",
+        "arbitrageRate": "0.100730"
+      },
+      {
+        "timestamp": 1601373960,
+        "univ2Price": "82.14352485",
+        "sushiPrice": "82.06906008",
+        "arbitrageRate": "0.090734"
       }
     ]
   }
