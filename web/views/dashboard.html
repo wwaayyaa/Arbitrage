@@ -115,7 +115,7 @@
             </el-table-column>
         </el-table>
 
-        <el-dialog :visible.sync="chartVisible" title="" width="1000px" >
+        <el-dialog :visible.sync="chartVisible" :title="chartTitle" width="1000px" >
             <div id="chart" style="width: 1000px;height:600px;"></div>
         </el-dialog>
     </template>
@@ -234,6 +234,7 @@
             return {
                 tableData: tableData,
                 chartVisible: false,
+                chartTitle: '',
             }
         },
         methods: {
@@ -254,6 +255,7 @@
             chart(event, pairName){
                 console.log(event, pairName);
                 this.$data.chartVisible = true;
+                this.$data.chartTitle = pairName;
 
                 socket.emit('history', pairName);
             }
@@ -285,6 +287,23 @@
                     }
                 }
             },
+            dataZoom: [{
+                type: 'inside',
+                start: 0,
+                end: 100
+            }, {
+                start: 0,
+                end: 10,
+                handleIcon: 'M10.7,11.9v-1.3H9.3v1.3c-4.9,0.3-8.8,4.4-8.8,9.4c0,5,3.9,9.1,8.8,9.4v1.3h1.3v-1.3c4.9-0.3,8.8-4.4,8.8-9.4C19.5,16.3,15.6,12.2,10.7,11.9z M13.3,24.4H6.7V23h6.6V24.4z M13.3,19.6H6.7v-1.4h6.6V19.6z',
+                handleSize: '80%',
+                handleStyle: {
+                    color: '#fff',
+                    shadowBlur: 3,
+                    shadowColor: 'rgba(0, 0, 0, 0.6)',
+                    shadowOffsetX: 2,
+                    shadowOffsetY: 2
+                }
+            }],
             legend: {
                 data:['uniswap', 'sushiswap', '价差%']
             },
@@ -301,7 +320,7 @@
                 type: 'value',
                 scale: true,
                 name: '价差%',
-                max: 2,
+                max: 3,
                 min: 0,
                 boundaryGap: [0.2, 0.2]
             }],
