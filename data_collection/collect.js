@@ -21,9 +21,9 @@ async function main() {
     for (let e in cc.exchange) {
         if (!cc.exchange[e].collect) continue;
         for (let p in cc.exchange[e].pair) {
-            try{
+            try {
                 collect(e, p, socket);
-            }catch (e) {
+            } catch (e) {
                 console.log('collect error', e);
             }
         }
@@ -31,11 +31,18 @@ async function main() {
 }
 
 async function collect(exchangeName, pairName, socket) {
+    let ex = new Exchange(exchangeName, cc.exchange[exchangeName].router02.address, cc.exchange[exchangeName].router02.abi, web3, acc);
+    ex.setPair(new Pair(pairName, cc.exchange[exchangeName].pair[pairName].address, cc.exchange[exchangeName].pair[pairName].abi));
     while (true) {
         //不同的swap指标不一样，现在先监控 流动性和价格
-        let ex = new Exchange(exchangeName, cc.exchange[exchangeName].router02.address, cc.exchange[exchangeName].router02.abi, web3, acc);
-        ex.setPair(new Pair(pairName, cc.exchange[exchangeName].pair[pairName].address, cc.exchange[exchangeName].pair[pairName].abi));
-        let info = await ex.getPriceInfo();
+        let info;
+        try {
+            info = await ex.getPriceInfo();
+        } catch (e) {
+            console.log('get price info error.', e.message || "");
+            await sleep(4000);
+            continue;
+        }
         [name0, name1] = pairName.split('-');
         info['name0'] = name0;
         info['name1'] = name1;
@@ -58,6 +65,5 @@ async function collect(exchangeName, pairName, socket) {
 function sleep(ms) {
     return new Promise(resolve => setTimeout(() => resolve(), ms));
 }
-
 
 main();

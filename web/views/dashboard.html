@@ -20,12 +20,6 @@
     <el-row>
         <el-col :span="24"><h3>价格监控</h3></el-col>
     </el-row>
-    <!--    <el-button-->
-    <!--            @click="visible = true">Button-->
-    <!--    </el-button>-->
-    <!--    <el-dialog :visible.sync="visible" title="Hello world">-->
-    <!--        <p>Try Element</p>-->
-    <!--    </el-dialog>-->
     <template>
         <el-table
                 :data="tableData"
@@ -64,10 +58,14 @@
                 label="最大套利空间%"
             >
                 <template slot-scope="scope">
-                    <h1>{{ scope.row.arbitrageRate }}</h1>
+                    <h1 @click="chart($event, scope.row.pair)" style="cursor:pointer">{{ scope.row.arbitrageRate }}<i class="el-icon-data-line"></i></h1>
                 </template>
             </el-table-column>
         </el-table>
+
+        <el-dialog :visible.sync="chartVisible" title="" width="1000px" >
+            <div id="chart" style="width: 1000px;height:600px;"></div>
+        </el-dialog>
     </template>
 </div>
 </body>
@@ -75,6 +73,7 @@
 <script src="https://unpkg.com/vue/dist/vue.js"></script>
 <!-- import JavaScript -->
 <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@4.9.0/dist/echarts.min.js"></script>
 <script src="/s/socket.io.js"></script>
 <script>
     let cc = <%- cc %>; // < 头大;
@@ -136,21 +135,21 @@
                     let _tmp = 0;
                     if(row[exchanges[e]].price != ''){
                         _tmp = row[exchanges[e]].price;
+                    } else {
+                        continue;
                     }
-                    if (min == 0){
+                    if (min == 0) {
+                        min = _tmp;
+                    } else if (min > _tmp) {
                         min = _tmp;
                     }
-                    if (max == 0){
+                    if (max == 0) {
                         max = _tmp;
-                    }
-                    if (min > _tmp){
-                        min = _tmp;
-                    }
-                    if(max < _tmp){
+                    } else if (max < _tmp) {
                         max = _tmp;
                     }
 
-                    console.log(max, min);
+                    // console.log(max, min);
                     row.arbitrageRate = min == 0 ? 0 : ((max / min - 1) * 100).toFixed(6);
                 }
                 this.$set(this.tableData, i, row);
@@ -174,12 +173,14 @@
             this.tableData.push(row);
         }
     };
+    let socket = io('localhost:4000', {path: '/s'});
 
     let vue = new Vue({
         el: '#app',
         data: function () {
             return {
                 tableData: tableData,
+                chartVisible: false,
             }
         },
         methods: {
@@ -197,15 +198,82 @@
                 }
                 return row[_name].hasOwnProperty('color') ? row[_name].color : "";
             },
+            chart(event, pairName){
+                console.log(event, pairName);
+                this.$data.chartVisible = true;
+
+                socket.emit('history', pairName);
+            }
         }
     });
 
-    var socket = io('localhost:4000', {path: '/s'});
+
+    socket.on('init_table', data => {
+        vue.$data.tableData = data;
+    });
     socket.on('price', data => {
         //把价格转换成二维数组中的一个元素
         vue.pushData(data.exchangeName, data.pairName, data.info);
     });
+    socket.on('historyList', data => {
+        console.log(data);
+        var myChart = echarts.init(document.getElementById('chart'));
 
+        var option = {
+            title: {
+                text: '历史价格&套利机会'
+            },
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'cross',
+                    label: {
+                        backgroundColor: '#283b56'
+                    }
+                }
+            },
+            legend: {
+                data:['uniswap', 'sushiswap', '价差%']
+            },
+            xAxis: {
+                data: data.history.map(r => r.timestamp)
+            },
+            yAxis: [{
+                type: 'value',
+                scale: true,
+                name: '价格',
+                boundaryGap: [0.2, 0.2]
+            },
+            {
+                type: 'value',
+                scale: true,
+                name: '价差%',
+                max: 5,
+                min: 0,
+                boundaryGap: [0.2, 0.2]
+            }],
+            series: [{
+                symbol: "none",
+                name: 'uniswap',
+                type: 'line',
+                data: data.history.map(r => r.univ2Price)
+            }, {
+                symbol: "none",
+                name: 'sushiswap',
+                type: 'line',
+                data: data.history.map(r => r.sushiPrice)
+            },{
+                symbol: "none",
+                name: '价差%',
+                type: 'line',
+                yAxisIndex: 1,
+                data: data.history.map(r => r.arbitrageRate)
+            }]
+        };
+
+        // 使用刚指定的配置项和数据显示图表。
+        myChart.setOption(option);
+    })
 
 </script>
 </html>
