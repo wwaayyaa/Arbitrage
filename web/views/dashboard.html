@@ -15,6 +15,48 @@
         .el-table h1,h5{
             margin: 3px;
         }
+
+        .container {
+            padding: 1vw;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            margin-right: -50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .background-color h1 {
+            color: #000;
+            font-family: 'montserrat';
+            font-size: 2vw;
+            font-weight: bold;
+            /*letter-spacing: 1vw;*/
+            max-width: 700px;
+            /*text-align: center;*/
+            background: rgba(255, 253, 160, 1);
+            background: -webkit-linear-gradient( left, #00ffff 0%, #97fba0 25%, #97b1fb 50%, #00ffff 100%) repeat;
+            -webkit-background-clip: text;
+            -ms-background-clip: text;
+            -moz-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            -ms-text-fill-color: transparent;
+            -moz-text-fill-color: transparent;
+            text-fill-color: transparent;
+            -webkit-animation-name: masked-animation;
+            -webkit-animation-duration: 50s;
+            -webkit-animation-iteration-count: infinite;
+            -webkit-animation-timing-function: linear;
+        }
+
+        @-webkit-keyframes masked-animation {
+            0% {
+                background-position: 0 0;
+            }
+            100% {
+                background-position: -8000px -3000px;
+            }
+        }
     </style>
 
 </head>
@@ -64,7 +106,11 @@
                 label="最大套利空间%"
             >
                 <template slot-scope="scope">
-                    <h1 @click="chart($event, scope.row.pair)" style="cursor:pointer">{{ scope.row.arbitrageRate }}<i class="el-icon-data-line"></i></h1>
+                    <div class="container">
+                        <div class="background-color">
+                            <h1 @click="chart($event, scope.row.pair)" style="cursor:pointer">{{ scope.row.arbitrageRate }}<i class="el-icon-data-line"></i></h1>
+                        </div>
+                    </div>
                 </template>
             </el-table-column>
         </el-table>
@@ -81,6 +127,7 @@
 <script src="https://unpkg.com/element-ui/lib/index.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@4.9.0/dist/echarts.min.js"></script>
 <script src="/s/socket.io.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/dayjs/1.4.1/dayjs.min.js"></script>
 <script>
     let cc = <%- cc %>; // < 头大;
     //给定exchange列表
@@ -242,7 +289,7 @@
                 data:['uniswap', 'sushiswap', '价差%']
             },
             xAxis: {
-                data: data.history.map(r => r.timestamp)
+                data: data.history.map(r => dayjs(r.timestamp*1000).format('MM-DD HH:mm'))
             },
             yAxis: [{
                 type: 'value',
