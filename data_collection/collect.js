@@ -14,7 +14,7 @@ const acc = web3.eth.accounts.privateKeyToAccount('0x9679727a20329d53f114382ea91
 
 async function main() {
     //init socket
-    let socket = ioc('http://localhost:4000', {
+    let socket = ioc('http://localhost:8084', {
         path: '/s'
     });
     // let exchanges = Object.keys(cc.exchange);

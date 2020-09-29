@@ -4,7 +4,7 @@ const template = require('art-template')
 template.defaults.rules.pop()
 // var rule = template.defaults.rules[0];
 // rule.test = new RegExp(rule.test.source.replace('<%', '<\\\?').replace('%>', '\\\?>'));
-
+const basicAuth = require('koa-basic-auth');
 const app = new koa()
 const path = require('path');
 let cc = require('../ChainConfig');
@@ -66,11 +66,25 @@ io.on('connection', socket => {
     });
 });
 
-app.use(async ctx => {
+app.use(async (ctx, next) => {
+    try {
+        await next();
+    } catch (err) {
+        if (401 == err.status) {
+            ctx.status = 401;
+            ctx.set('WWW-Authenticate', 'Basic');
+            ctx.body = 'cant haz that';
+        } else {
+            throw err;
+        }
+    }
     // ctx.body = 'Hello World';
+});
+app.use(basicAuth({ name: 'poolin', pass: '' }));
+app.use(async (ctx) => {
     await ctx.render('dashboard', {cc: JSON.stringify(cc)});
 });
-server.listen(4000);
+server.listen(8084);
 
 //交易对数据
 let pushData = function (exchangeName, pairName, info) {
