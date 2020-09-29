@@ -179,7 +179,7 @@
             this.tableData.push(row);
         }
     };
-    let socket = io('localhost:8084', {path: '/s'});
+    let socket = io(window.location.host, {path: '/s'});
 
     let vue = new Vue({
         el: '#app',
