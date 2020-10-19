@@ -10,7 +10,7 @@ let Exchange = require('./exchange/exchange');
 let Pair = require('./exchange/pair');
 
 let ioc = require('socket.io-client');
-const { Sequelize } = require('sequelize');
+const {Sequelize} = require('sequelize');
 const sql = new Sequelize('price_monitor', 'root', 'root', {
     host: 'localhost',
     dialect: 'mysql'
@@ -26,12 +26,15 @@ async function main() {
 
     //先做eth/btc
     let tableName = 'quote';
-    const quote = await sql.query("SELECT * FROM `quote` where enabled = 1;", { type: 'SELECT' });
+    const quote = await sql.query("SELECT * FROM `quote` where enabled = 1;", {type: 'SELECT'});
 
-    for(let i = 0;i<quote.length;i++){
+    for (let i = 0; i < quote.length; i++) {
         let q = quote[i];
+        let [n0, n1] = q.name.split('/');
+        let tableName = 'single_price_minute_' + q.exchange + '_' + n0 + '_' + n1;
+
         //TODO create table if not exists
-        console.log(q);
+        createTable(sql, tableName);
 
         if (q.type == 'defi') {
             let exchangeName = '';
@@ -41,12 +44,11 @@ async function main() {
                 exchangeName = 'sushi';
             }
             for (let p in cc.exchange[exchangeName].pair) {
-                [n0, n1] = q.name.split('/');
-                [name0, name1] = p.split('-');
+
+                let [name0, name1] = p.split('-');
 
                 if ((n0 == name0 && n1 == name1) || (n0 == name1 && n1 == name0)) {
                     console.log('~', name0, name1, p);
-                    let tableName = 'single_price_minute_' + q.exchange + '_' + n0 + '_' + n1;
                     try {
                         collect(exchangeName, p, socket, tableName, q.name, q.reverse);
                     } catch (e) {
@@ -109,6 +111,14 @@ async function collect(exchangeName, pairName, socket, tableName, quoteName, rev
             })
 
         await sleep(10000);
+    }
+}
+
+function createTable(sql, tableName) {
+    try {
+        sql.query("create table " + tableName + " like single_price_minute_tpl");
+    } catch (e) {
+
     }
 }
 
