@@ -1,5 +1,6 @@
 let fs = require('fs');
 let BN = require('bignumber.js');
+let dayjs = require('dayjs');
 
 let Web3 = require('web3');
 let web3 = new Web3('http://8.210.15.226:8545');
@@ -9,6 +10,11 @@ let Exchange = require('./exchange/exchange');
 let Pair = require('./exchange/pair');
 
 let ioc = require('socket.io-client');
+const { Sequelize } = require('sequelize');
+const sql = new Sequelize('price_monitor', 'root', 'root', {
+    host: 'localhost',
+    dialect: 'mysql'
+});
 
 const acc = web3.eth.accounts.privateKeyToAccount('0x9679727a20329d53f114382ea91b6f9e1e3e0b622f79a44bd53a5b2fb794171d');
 
@@ -17,22 +23,59 @@ async function main() {
     let socket = ioc('http://localhost:8084', {
         path: '/s'
     });
-    // let exchanges = Object.keys(cc.exchange);
-    for (let e in cc.exchange) {
-        if (!cc.exchange[e].collect) continue;
-        for (let p in cc.exchange[e].pair) {
-            try {
-                collect(e, p, socket);
-            } catch (e) {
-                console.log('collect error', e);
+
+    //先做eth/btc
+    let tableName = 'quote';
+    const quote = await sql.query("SELECT * FROM `quote` where enabled = 1;", { type: 'SELECT' });
+
+    for(let i = 0;i<quote.length;i++){
+        let q = quote[i];
+        //TODO create table if not exists
+        console.log(q);
+
+        if (q.type == 'defi') {
+            let exchangeName = '';
+            if (q.exchange == 'uniswap') {
+                exchangeName = 'univ2';
+            } else {
+                exchangeName = 'sushi';
             }
+            for (let p in cc.exchange[exchangeName].pair) {
+                [n0, n1] = q.name.split('/');
+                [name0, name1] = p.split('-');
+
+                if ((n0 == name0 && n1 == name1) || (n0 == name1 && n1 == name0)) {
+                    console.log('~', name0, name1, p);
+                    let tableName = 'single_price_minute_' + q.exchange + '_' + n0 + '_' + n1;
+                    try {
+                        collect(exchangeName, p, socket, tableName, q.name, q.reverse);
+                    } catch (e) {
+                        console.log('collect error', e);
+                    }
+                }
+            }
+        } else {
+            //cefi
         }
     }
+
+    // let exchanges = Object.keys(cc.exchange);
+    // for (let e in cc.exchange) {
+    //     if (!cc.exchange[e].collect) continue;
+    //     for (let p in cc.exchange[e].pair) {
+    //         try {
+    //             collect(e, p, socket);
+    //         } catch (e) {
+    //             console.log('collect error', e);
+    //         }
+    //     }
+    // }
 }
 
-async function collect(exchangeName, pairName, socket) {
+async function collect(exchangeName, pairName, socket, tableName, quoteName, reverse) {
     let ex = new Exchange(exchangeName, cc.exchange[exchangeName].router02.address, cc.exchange[exchangeName].router02.abi, web3, acc);
     ex.setPair(new Pair(pairName, cc.exchange[exchangeName].pair[pairName].address, cc.exchange[exchangeName].pair[pairName].abi));
+    let [name0, name1] = pairName.split('-');
     while (true) {
         //不同的swap指标不一样，现在先监控 流动性和价格
         let info;
@@ -43,7 +86,6 @@ async function collect(exchangeName, pairName, socket) {
             await sleep(4000);
             continue;
         }
-        [name0, name1] = pairName.split('-');
         info['name0'] = name0;
         info['name1'] = name1;
         info['decimal0'] = cc.token[name0].decimals;
@@ -58,7 +100,15 @@ async function collect(exchangeName, pairName, socket) {
         //socketio
         socket.emit('collected', {exchangeName, pairName, info});
 
-        await sleep(4000);
+        console.log(info['price']);
+        let now = new dayjs();
+        sql.query("insert into " + tableName + " (minute, price) values (?, ?) on duplicate key update price = values(price);",
+            {
+                replacements: [now.format("YYYYMMDDHHmm"), (reverse ? 1 / info['price'] : info['price'])],
+                type: 'INSERT'
+            })
+
+        await sleep(10000);
     }
 }
 
