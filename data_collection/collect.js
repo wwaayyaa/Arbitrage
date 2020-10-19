@@ -48,11 +48,10 @@ async function main() {
                 let [name0, name1] = p.split('-');
 
                 if ((n0 == name0 && n1 == name1) || (n0 == name1 && n1 == name0)) {
-                    console.log('~', name0, name1, p);
                     try {
                         collect(exchangeName, p, socket, tableName, q.name, q.reverse);
                     } catch (e) {
-                        console.log('collect error', e);
+                        console.error('collect error', e);
                     }
                 }
             }
@@ -97,12 +96,11 @@ async function collect(exchangeName, pairName, socket, tableName, quoteName, rev
         info['amount0'] = reserve0.div(new BN(10).pow(info['decimal0'])).toFixed(8);
         info['amount1'] = reserve1.div(new BN(10).pow(info['decimal1'])).toFixed(8);
         info['price'] = (new BN(info['amount0'])).div(info['amount1']).toFixed(8);
-        console.log(exchangeName, pairName, info);
+        // console.log(exchangeName, pairName, info);
 
         //socketio
         socket.emit('collected', {exchangeName, pairName, info});
 
-        console.log(info['price']);
         let now = new dayjs();
         sql.query("insert into " + tableName + " (minute, price) values (?, ?) on duplicate key update price = values(price);",
             {
