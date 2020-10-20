@@ -36,12 +36,12 @@ async function main() {
         createTable(sql, tableName);
 
         if (q.type == 'defi') {
-            let exchangeName = '';
-            if (q.exchange == 'uniswap') {
-                exchangeName = 'univ2';
-            } else {
-                exchangeName = 'sushi';
-            }
+            let exchangeName = q.exchange;
+            // if (q.exchange == 'uniswap') {
+            //     exchangeName = 'univ2';
+            // } else {
+            //     exchangeName = 'sushi';
+            // }
             for (let p in cc.exchange[exchangeName].pair) {
 
                 let [name0, name1] = p.split('-');
@@ -55,7 +55,7 @@ async function main() {
                 }
             }
         } else {
-            collectCeFi(q.exchange, q.name, tableName);
+            collectCeFi(q.exchange, q.name, tableName, socket);
         }
     }
 }
@@ -86,7 +86,7 @@ async function collect(exchangeName, pairName, socket, tableName, quoteName, rev
         // console.log(exchangeName, pairName, info);
 
         //socketio
-        socket.emit('collected', {exchangeName, pairName, info});
+        socket.emit('collected', {exchangeName, quoteName, price: info['price']});
 
         let now = new dayjs();
         sql.query("insert into " + tableName + " (minute, price) values (?, ?) on duplicate key update price = values(price);",
@@ -99,7 +99,7 @@ async function collect(exchangeName, pairName, socket, tableName, quoteName, rev
     }
 }
 
-async function collectCeFi(exchangeName, quoteName, tableName) {
+async function collectCeFi(exchangeName, quoteName, tableName, socket) {
     let price = -1;
     while (true) {
         if (exchangeName == 'huobi') {
@@ -109,7 +109,7 @@ async function collectCeFi(exchangeName, quoteName, tableName) {
             } catch (e) {
                 console.error(`huobi error: ${exchangeName}, ${quoteName}, ${e}`);
             }
-        } else if (exchangeName = 'bian') {
+        } else if (exchangeName == 'bian') {
             try {
                 let symbol = quoteName.replace('\/', '').toUpperCase();
                 let response = await axios.get(`https://api.binance.com/api/v3/trades?symbol=${symbol}&limit=1`);
@@ -127,6 +127,7 @@ async function collectCeFi(exchangeName, quoteName, tableName) {
             }
         }
 
+        socket.emit('collected', {exchangeName, quoteName, price});
         let now = new dayjs();
         try {
             sql.query("insert into " + tableName + " (minute, price) values (?, ?) on duplicate key update price = values(price);",

@@ -1,6 +1,6 @@
 {
     "exchange": {
-        "univ2": {
+        "uniswap": {
             "factory_address": "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f",
             "router02": {
                 "address": "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
@@ -48,7 +48,7 @@
             "collect": false
         },
 
-        "sushi": {
+        "sushiswap": {
             "factory_address": "0xc0aee478e3658e2610c5f7a4a2e1777ce9e4f2ac",
             "router02":{
                 "unknown": "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
