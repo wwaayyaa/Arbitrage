@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "axios": "^0.20.0",
     "bignumber.js": "^9.0.0",
     "dayjs": "^1.9.3",
     "lowdb": "^1.0.0",
