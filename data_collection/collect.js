@@ -26,7 +26,6 @@ async function main() {
     });
 
     //先做eth/btc
-    let tableName = 'quote';
     const quote = await sql.query("SELECT * FROM `quote` where enabled = 1;", {type: 'SELECT'});
 
     for (let i = 0; i < quote.length; i++) {
@@ -34,7 +33,6 @@ async function main() {
         let [n0, n1] = q.name.split('/');
         let tableName = 'single_price_minute_' + q.exchange + '_' + n0 + '_' + n1;
 
-        //TODO create table if not exists
         createTable(sql, tableName);
 
         if (q.type == 'defi') {
@@ -60,18 +58,6 @@ async function main() {
             collectCeFi(q.exchange, q.name, tableName);
         }
     }
-
-    // let exchanges = Object.keys(cc.exchange);
-    // for (let e in cc.exchange) {
-    //     if (!cc.exchange[e].collect) continue;
-    //     for (let p in cc.exchange[e].pair) {
-    //         try {
-    //             collect(e, p, socket);
-    //         } catch (e) {
-    //             console.log('collect error', e);
-    //         }
-    //     }
-    // }
 }
 
 async function collect(exchangeName, pairName, socket, tableName, quoteName, reverse) {
@@ -115,43 +101,45 @@ async function collect(exchangeName, pairName, socket, tableName, quoteName, rev
 
 async function collectCeFi(exchangeName, quoteName, tableName) {
     let price = -1;
-    if (exchangeName == 'huobi') {
-        try {
-            let response = await axios.get('https://api.huobipro.com/market/trade?symbol=' + quoteName.replace('\/', ''))
-            price = response.data.tick.data[0].price;
-        } catch (e) {
-            console.error(`huobi error: ${exchangeName}, ${quoteName}, ${e}`);
+    while (true) {
+        if (exchangeName == 'huobi') {
+            try {
+                let response = await axios.get('https://api.huobipro.com/market/trade?symbol=' + quoteName.replace('\/', ''))
+                price = response.data.tick.data[0].price;
+            } catch (e) {
+                console.error(`huobi error: ${exchangeName}, ${quoteName}, ${e}`);
+            }
+        } else if (exchangeName = 'bian') {
+            try {
+                let symbol = quoteName.replace('\/', '').toUpperCase();
+                let response = await axios.get(`https://api.binance.com/api/v3/trades?symbol=${symbol}&limit=1`);
+                price = response.data[0].price;
+            } catch (e) {
+                console.error(`bian error: ${exchangeName}, ${quoteName}, ${e}`);
+            }
+        } else if (exchangeName == 'ok') {
+            try {
+                let symbol = quoteName.replace('\/', '-').toUpperCase();
+                let response = await axios.get(`https://www.okex.com/api/spot/v3/instruments/${symbol}/ticker`);
+                price = response.data.last;
+            } catch (e) {
+                console.error(`bian error: ${exchangeName}, ${quoteName}, ${e}`);
+            }
         }
-    } else if (exchangeName = 'bian') {
-        try {
-            let symbol = quoteName.replace('\/', '').toUpperCase();
-            let response = await axios.get(`https://api.binance.com/api/v3/trades?symbol=${symbol}&limit=1`);
-            price = response.data[0].price;
-        } catch (e) {
-            console.error(`bian error: ${exchangeName}, ${quoteName}, ${e}`);
-        }
-    } else if (exchangeName == 'ok') {
-        try {
-            let symbol = quoteName.replace('\/', '-').toUpperCase();
-            let response = await axios.get(`https://www.okex.com/api/spot/v3/instruments/${symbol}/ticker`);
-            price = response.data.last;
-        } catch (e) {
-            console.error(`bian error: ${exchangeName}, ${quoteName}, ${e}`);
-        }
-    }
 
-    let now = new dayjs();
-    try {
-        sql.query("insert into " + tableName + " (minute, price) values (?, ?) on duplicate key update price = values(price);",
-            {
-                replacements: [now.format("YYYYMMDDHHmm"), price],
-                type: 'INSERT'
-            });
-    } catch (e) {
-        console.error(`insert error: ${exchangeName}, ${quoteName}, ${e}`)
-    }
+        let now = new dayjs();
+        try {
+            sql.query("insert into " + tableName + " (minute, price) values (?, ?) on duplicate key update price = values(price);",
+                {
+                    replacements: [now.format("YYYYMMDDHHmm"), price],
+                    type: 'INSERT'
+                });
+        } catch (e) {
+            console.error(`insert error: ${exchangeName}, ${quoteName}, ${e}`)
+        }
 
-    await sleep(15000);
+        await sleep(15000);
+    }
 }
 
 
