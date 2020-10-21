@@ -1,4 +1,5 @@
-const koa = require('koa')
+require('dotenv').config();
+const koa = require('koa');
 const render = require('koa-art-template')
 const template = require('art-template')
 template.defaults.rules.pop()
@@ -11,8 +12,8 @@ const dayjs = require('dayjs');
 let cc = require('../ChainConfig');
 
 const {Sequelize} = require('sequelize');
-const sql = new Sequelize('price_monitor', 'root', 'root', {
-    host: 'localhost',
+const sql = new Sequelize(process.env.DB_DATABASE, process.env.DB_USER, process.env.DB_PASS, {
+    host: process.env.DB_HOST,
     dialect: 'mysql'
 });
 

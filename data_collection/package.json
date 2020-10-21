@@ -12,6 +12,7 @@
     "axios": "^0.20.0",
     "bignumber.js": "^9.0.0",
     "dayjs": "^1.9.3",
+    "dotenv": "^8.2.0",
     "lowdb": "^1.0.0",
     "mysql2": "^2.2.5",
     "sequelize": "^6.3.5",

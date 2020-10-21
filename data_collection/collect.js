@@ -1,3 +1,4 @@
+require('dotenv').config();
 let fs = require('fs');
 let BN = require('bignumber.js');
 let dayjs = require('dayjs');
@@ -12,8 +13,8 @@ const axios = require('axios')
 
 let ioc = require('socket.io-client');
 const {Sequelize} = require('sequelize');
-const sql = new Sequelize('price_monitor', 'root', 'root', {
-    host: 'localhost',
+const sql = new Sequelize(process.env.DB_DATABASE, process.env.DB_USER, process.env.DB_PASS, {
+    host: process.env.DB_HOST,
     dialect: 'mysql'
 });
 
