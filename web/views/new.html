@@ -17,46 +17,35 @@
             margin: 3px;
         }
 
-        .container {
-            padding: 1vw;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            margin-right: -50%;
-            transform: translate(-50%, -50%);
+        .block {
+            height: 100px;
+            width: 200px;
+            background: #97b1fb;
+            margin: 10px;
+            padding: 10px;
+            border: 1px solid rgb(226, 214, 207);
+            border-radius: 12px;
         }
 
-        .background-color h1 {
-            color: #000;
-            font-family: 'montserrat';
-            font-size: 2vw;
-            font-weight: bold;
-            /*letter-spacing: 1vw;*/
-            max-width: 700px;
-            /*text-align: center;*/
-            background: rgba(255, 253, 160, 1);
-            background: -webkit-linear-gradient(left, #00ffff 0%, #97fba0 25%, #97b1fb 50%, #00ffff 100%) repeat;
-            -webkit-background-clip: text;
-            -ms-background-clip: text;
-            -moz-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            -ms-text-fill-color: transparent;
-            -moz-text-fill-color: transparent;
-            text-fill-color: transparent;
-            -webkit-animation-name: masked-animation;
-            -webkit-animation-duration: 50s;
-            -webkit-animation-iteration-count: infinite;
-            -webkit-animation-timing-function: linear;
+        .block.huobi{
+            background: #357ce1;
         }
-
-        @-webkit-keyframes masked-animation {
-            0% {
-                background-position: 0 0;
-            }
-            100% {
-                background-position: -8000px -3000px;
-            }
+        .block.bian{
+            background: #efb90b;
+        }
+        .block.ok{
+            background: #112c7a;
+        }
+        .block.uniswap{
+            background: #a11b56;
+        }
+        .block.sushiswap{
+            background: #fff8ee;
+        }
+        .block .price {
+            font-size: 30px;
+            font-weight: 700;
+            font-family: "Roboto Mono", monospace;
         }
     </style>
 
@@ -67,15 +56,16 @@
         <el-col :span="24"><h3>价格监控</h3></el-col>
     </el-row>
     <div style="display: flex; flex-wrap: wrap">
-        <div v-for="q in quote" style="height: 100px; width: 200px;background: #97b1fb;margin: 10px;padding: 5px"
-             @click="select($event, q)">
+        <div v-for="q in quote" class="block" @click="select($event, q)" :class="blockClass">
             <div>{{q.name}} - {{q.exchange}}</div>
-            <div>{{q.price}}</div>
+            <div class="price">{{q.price}}</div>
             <div>{{q.selected ? '中' : ''}}</div>
         </div>
     </div>
     <div>
-        <el-input placeholder="几天" v-model="refreshDays"></el-input>
+        <el-input placeholder="几天" v-model="refreshDays" style="width: 120px">
+            <template slot="append">天</template>
+        </el-input>
         <template>
             <el-radio v-model="indexType" label="none">无</el-radio>
             <el-radio v-model="indexType" label="arbitrage">搬砖套利</el-radio>
@@ -124,6 +114,12 @@
         },
         methods: {
             pushData: pushData,
+            blockClass(q){
+                let ret = null;
+                ret[q.exchange] = true;
+                console.log(ret);
+                return ret;
+            },
             chart(event, pairName) {
                 console.log(event, pairName);
                 this.$data.chartVisible = true;
