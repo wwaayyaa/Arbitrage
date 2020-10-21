@@ -74,7 +74,15 @@
             <div>{{q.selected ? '中' : ''}}</div>
         </div>
     </div>
-    <div><input type="text" placeholder="几天" v-model="refreshDays">天 <button @click="refreshChart">加载</button></div>
+    <div>
+        <el-input placeholder="几天" v-model="refreshDays"></el-input>
+        <template>
+            <el-radio v-model="indexType" label="none">无</el-radio>
+            <el-radio v-model="indexType" label="arbitrage">搬砖套利</el-radio>
+            <el-radio v-model="indexType" label="triangular_arbitrage">三角套利</el-radio>
+        </template>
+        <el-button @click="refreshChart" type="primary">画图</el-button>
+    </div>
     <div id="chart" style="width: 1000px;height:600px;"></div>
 </div>
 </body>
@@ -110,7 +118,8 @@
 
                 selected: [],
                 refreshing: false,
-                refreshDays: 7,
+                refreshDays: 1,
+                indexType: 'none',
             }
         },
         methods: {
@@ -122,11 +131,12 @@
                 socket.emit('history', pairName);
             },
             select(e, info) {
+                // console.log(info.id);
                 let id = info.id;
                 let find = vue.$data.selected.find(s => s.id == info.id);
                 if (find){
-                    let index = vue.$data.selected.findIndex(s => s.id = info.id);
-                    vue.$data.selected = vue.$data.selected.filter(s => s.id != find.id);
+                    let index = vue.$data.selected.findIndex(s => s.id == info.id);
+                    vue.$data.selected = vue.$data.selected.filter(s => s.id != info.id);
                     vue.$data.quote = vue.$data.quote.map(q => {if(q.id == id){q.selected = false;}return q;});
                 }else{
                     vue.$data.selected.push(info);
@@ -136,9 +146,14 @@
             async refreshChart(){
                 this.$data.refreshing = true;
                 var myChart = echarts.init(document.getElementById('chart'));
+                myChart.clear();
                 legendData = [];
                 xAxisData = [];
                 seriesData = [];
+                if (vue.$data.refreshDays > 30 || vue.$data.refreshDays < 1){
+                    alert('天数只能在1~30天之内');
+                    return;
+                }
                 for(let i = 0; i< vue.$data.selected.length; i++){
                     let selected = vue.$data.selected[i];
                     let exchangeName = selected.exchange;
@@ -154,63 +169,6 @@
                         type: 'line',
                         data: response.data.map(r => r.price)
                     });
-
-                    var option = {
-                        title: {
-                            text: '666'
-                        },
-                        tooltip: {
-                            trigger: 'axis',
-                            axisPointer: {
-                                type: 'cross',
-                                label: {
-                                    backgroundColor: '#283b56'
-                                }
-                            }
-                        },
-                        dataZoom: [{
-                            type: 'inside',
-                            start: 0,
-                            end: 100
-                        }, {
-                            start: 0,
-                            end: 10,
-                            handleIcon: 'M10.7,11.9v-1.3H9.3v1.3c-4.9,0.3-8.8,4.4-8.8,9.4c0,5,3.9,9.1,8.8,9.4v1.3h1.3v-1.3c4.9-0.3,8.8-4.4,8.8-9.4C19.5,16.3,15.6,12.2,10.7,11.9z M13.3,24.4H6.7V23h6.6V24.4z M13.3,19.6H6.7v-1.4h6.6V19.6z',
-                            handleSize: '80%',
-                            handleStyle: {
-                                color: '#fff',
-                                shadowBlur: 3,
-                                shadowColor: 'rgba(0, 0, 0, 0.6)',
-                                shadowOffsetX: 2,
-                                shadowOffsetY: 2
-                            }
-                        }],
-                        legend: {
-                            data: legendData
-                        },
-                        xAxis: {
-                            data: xAxisData // data.history.map(r => dayjs(r.timestamp * 1000).format('MM-DD HH:mm'))
-                        },
-                        yAxis: [{
-                            type: 'value',
-                            scale: true,
-                            name: '价格',
-                            boundaryGap: [0.2, 0.2]
-                        },
-                            {
-                                type: 'value',
-                                scale: true,
-                                name: '价差%',
-                                max: 3,
-                                min: 0,
-                                boundaryGap: [0.2, 0.2]
-                            }],
-                        series: seriesData
-                    };
-
-                    // 使用刚指定的配置项和数据显示图表。
-                    myChart.setOption(option);
-
                         // .then(response =>{
                         //     console.log(response.data);
                         // })
@@ -219,12 +177,103 @@
                         // });
                 }
 
+                if(seriesData.length >= 2 && vue.$data.indexType == 'arbitrage'){
+                    console.log('@!#!@#');
+                    let rateData = [];
+                    //计算比例
+                    for(let i = 0; i<xAxisData.length;i++){
+                        let min = 0;
+                        let max = 0;
+                        for(let j = 0; j <seriesData.length; j++){
+                            let price = seriesData[j].data[i];
+                            if(price != null){
+                                if(min == 0) {min = price};
+                                if(max == 0) {max = price};
+                                if(price < min){
+                                    min = price;
+                                }
+                                if(price > max){
+                                    max = price;
+                                }
+                            }
+                        }
+                        rateData.push((max / min - 1) * 100);
+                    }
+                    // console.log(rateData);
+                    legendData.push('价差比例%');
+                    seriesData.push({
+                        symbol: "none",
+                        name: '价差比例%',
+                        type: 'bar',
+                        yAxisIndex: 1,
+                        data: rateData
+                    });
+                }
+                if(seriesData.length == 3 && vue.$data.indexType == 'triangular_arbitrage'){
+                    //TODO
+                }
+
+                var option = {
+                    title: {
+                        text: ''
+                    },
+                    tooltip: {
+                        trigger: 'axis',
+                        axisPointer: {
+                            type: 'cross',
+                            label: {
+                                backgroundColor: '#283b56'
+                            }
+                        }
+                    },
+                    dataZoom: [{
+                        type: 'inside',
+                        start: 0,
+                        end: 100
+                    }, {
+                        start: 0,
+                        end: 10,
+                        handleIcon: 'M10.7,11.9v-1.3H9.3v1.3c-4.9,0.3-8.8,4.4-8.8,9.4c0,5,3.9,9.1,8.8,9.4v1.3h1.3v-1.3c4.9-0.3,8.8-4.4,8.8-9.4C19.5,16.3,15.6,12.2,10.7,11.9z M13.3,24.4H6.7V23h6.6V24.4z M13.3,19.6H6.7v-1.4h6.6V19.6z',
+                        handleSize: '80%',
+                        handleStyle: {
+                            color: '#fff',
+                            shadowBlur: 3,
+                            shadowColor: 'rgba(0, 0, 0, 0.6)',
+                            shadowOffsetX: 2,
+                            shadowOffsetY: 2
+                        }
+                    }],
+                    legend: {
+                        data: legendData
+                    },
+                    xAxis: {
+                        data: xAxisData // data.history.map(r => dayjs(r.timestamp * 1000).format('MM-DD HH:mm'))
+                    },
+                    yAxis: [{
+                        type: 'value',
+                        scale: true,
+                        name: '价格',
+                        boundaryGap: [0.2, 0.2]
+                    },
+                        {
+                            type: 'value',
+                            scale: true,
+                            name: '价差%',
+                            max: 3,
+                            min: 0,
+                            boundaryGap: [0.2, 0.2]
+                        }],
+                    series: seriesData
+                };
+
+                // 使用刚指定的配置项和数据显示图表。
+                myChart.setOption(option);
                 this.$data.refreshing = false;
             }
         },
         mounted: function () {
             let _self = this;
-            console.log('mounted');
+            // console.log('mounted');
             axios.get('/api/quote')
                 .then(response => {
                     response.data.map(q => {
@@ -242,7 +291,7 @@
     });
 
     socket.on('init_price', data => {
-        console.log('~', data);
+        // console.log('~', data);
         for (let i in data) {
             [en, s] = i.split('_');
             pushData(en, s, data[i]);

@@ -127,6 +127,10 @@ async function collectCeFi(exchangeName, quoteName, tableName, socket) {
             }
         }
 
+        if(price == -1){
+            await sleep(15000);
+            continue;
+        }
         socket.emit('collected', {exchangeName, quoteName, price});
         let now = new dayjs();
         try {
