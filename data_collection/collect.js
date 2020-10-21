@@ -128,6 +128,7 @@ async function collectCeFi(exchangeName, quoteName, tableName, socket) {
             }
         }
 
+        price = price - 0;
         if(price == -1){
             await sleep(15000);
             continue;

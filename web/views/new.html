@@ -19,12 +19,18 @@
 
         .block {
             height: 100px;
-            width: 200px;
+            width: 220px;
             background: #97b1fb;
             margin: 10px;
             padding: 10px;
             border: 1px solid rgb(226, 214, 207);
             border-radius: 12px;
+        }
+        .block.selected{
+            border: 5px solid rgb(13 124 234);
+        }
+        .block:hover{
+            background: #a5baf5;
         }
 
         .block.huobi{
@@ -37,7 +43,7 @@
             background: #112c7a;
         }
         .block.uniswap{
-            background: #a11b56;
+            background: #ff017a;
         }
         .block.sushiswap{
             background: #fff8ee;
@@ -55,13 +61,15 @@
     <el-row>
         <el-col :span="24"><h3>价格监控</h3></el-col>
     </el-row>
+    <el-row>
     <div style="display: flex; flex-wrap: wrap">
-        <div v-for="q in quote" class="block" @click="select($event, q)" :class="blockClass">
+        <div v-for="q in quote" class="block" @click="select($event, q)" :class="blockClass(q)">
             <div>{{q.name}} - {{q.exchange}}</div>
             <div class="price">{{q.price}}</div>
-            <div>{{q.selected ? '中' : ''}}</div>
         </div>
     </div>
+    </el-row>
+    <el-row>
     <div>
         <el-input placeholder="几天" v-model="refreshDays" style="width: 120px">
             <template slot="append">天</template>
@@ -73,7 +81,8 @@
         </template>
         <el-button @click="refreshChart" type="primary">画图</el-button>
     </div>
-    <div id="chart" style="width: 1000px;height:600px;"></div>
+    </el-row>
+    <div id="chart" style="width: 1680px;height:800px;"></div>
 </div>
 </body>
 <!-- import Vue before Element -->
@@ -115,9 +124,9 @@
         methods: {
             pushData: pushData,
             blockClass(q){
-                let ret = null;
+                let ret = {};
                 ret[q.exchange] = true;
-                console.log(ret);
+                ret['selected'] = q.selected;
                 return ret;
             },
             chart(event, pairName) {
