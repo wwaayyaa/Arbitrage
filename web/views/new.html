@@ -67,11 +67,15 @@
         <el-col :span="24"><h3>价格监控</h3></el-col>
     </el-row>
     <div style="display: flex; flex-wrap: wrap">
-        <div v-for="q in quote" style="height: 100px; width: 200px;background: #97b1fb;margin: 10px;padding: 5px">
+        <div v-for="q in quote" style="height: 100px; width: 200px;background: #97b1fb;margin: 10px;padding: 5px"
+             @click="select($event, q)">
             <div>{{q.name}} - {{q.exchange}}</div>
             <div>{{q.price}}</div>
+            <div>{{q.selected ? '中' : ''}}</div>
         </div>
     </div>
+    <div><input type="text" placeholder="几天" v-model="refreshDays">天 <button @click="refreshChart">加载</button></div>
+    <div id="chart" style="width: 1000px;height:600px;"></div>
 </div>
 </body>
 <!-- import Vue before Element -->
@@ -85,110 +89,15 @@
 
 <script>
     //给定exchange列表
-    let exchanges = ['univ2', 'sushi'];
-    let tableData = [];
-    tableData = [
-        // {
-        //     pair: 'eth_dai',
-        //     univ2: {
-        //         reserve0: 3289289824982,
-        //         reserve1: 123283829389283,
-        //         price: 0.123
-        //     },
-        //     sushi: {
-        //         reserve0: 3289289824982,
-        //         reserve1: 123283829389283,
-        //         price: 0.123
-        //     }
-        // }
-    ];
     let priceData = [];
     let pushData = function (exchangeName, quoteName, price) {
         let key = `${exchangeName}-${quoteName}`;
         priceData[key] = price;
         this.$data.quote.forEach((e, i) => {
-            if (e.exchange == exchangeName && e.name == quoteName){
+            if (e.exchange == exchangeName && e.name == quoteName) {
                 this.$data.quote[i].price = price;
             }
         });
-    };
-    let pushData1 = function (exchangeName, pairName, info) {
-        //判断是否有交易对
-        let existPair = false;
-        let row;
-        for (let i = 0; i < this.tableData.length; i++) {
-            if (this.tableData[i].pair == pairName) {
-                existPair = true;
-                row = this.tableData[i];
-                let max = 0, min = 0;
-                for (let e in exchanges) {
-                    if (exchanges[e] == exchangeName) {
-                        //匹配到cell
-                        info.amount0Change = "";
-                        info.amount1Change = "";
-                        info.color = "";
-                        if (info.amount0 > row[exchangeName].amount0) {
-                            info.amount0Change = "↑";
-                        } else if (info.amount0 < row[exchangeName].amount0) {
-                            info.amount0Change = "↓";
-                        }
-                        if (info.amount1 > row[exchangeName].amount1) {
-                            info.amount1Change = "↑";
-                        } else if (info.amount1 < row[exchangeName].amount1) {
-                            info.amount1Change = "↓";
-                        }
-                        if (info.price > row[exchangeName].price) {
-                            info.color = "success-cell";
-                            info.priceChange = "↑"
-                        } else if (info.price < row[exchangeName].price) {
-                            info.color = "danger-cell";
-                            info.priceChange = "↓"
-                        }
-                        row[exchangeName] = info;
-
-                        // this.$set(this.tableData, i, row);
-                        // break;
-                    }
-                    let _tmp = 0;
-                    if (row[exchanges[e]].price != '') {
-                        _tmp = row[exchanges[e]].price;
-                    } else {
-                        continue;
-                    }
-                    if (min == 0) {
-                        min = _tmp;
-                    } else if (min > _tmp) {
-                        min = _tmp;
-                    }
-                    if (max == 0) {
-                        max = _tmp;
-                    } else if (max < _tmp) {
-                        max = _tmp;
-                    }
-
-                    // console.log(max, min);
-                    row.arbitrageRate = min == 0 ? 0 : ((max / min - 1) * 100).toFixed(6);
-                }
-                this.$set(this.tableData, i, row);
-                break;
-            }
-        }
-        if (!existPair) {
-            row = {pair: pairName};
-            //添加数据
-            for (let e in exchanges) {
-                if (exchanges[e] == exchangeName) {
-                    row[exchangeName] = info;
-                } else {
-                    row[exchanges[e]] = {
-                        reserve0: '-',
-                        reserve1: '-',
-                        price: ''
-                    }
-                }
-            }
-            this.tableData.push(row);
-        }
     };
     let socket = io(window.location.host, {path: '/s'});
 
@@ -196,33 +105,121 @@
         el: '#app',
         data: function () {
             return {
-                tableData: tableData,
                 chartVisible: false,
-                chartTitle: '',
                 quote: [],
+
+                selected: [],
+                refreshing: false,
+                refreshDays: 7,
             }
         },
         methods: {
             pushData: pushData,
-            tableCellClassName({row, column, rowIndex}) {
-                let _name = "";
-                if (column.label == "Uniswap") {
-                    _name = "univ2";
-                }
-                if (column.label == "Sushiswap") {
-                    _name = "sushi";
-                }
-                if (_name == "") {
-                    return "";
-                }
-                return row[_name].hasOwnProperty('color') ? row[_name].color : "";
-            },
             chart(event, pairName) {
                 console.log(event, pairName);
                 this.$data.chartVisible = true;
-                this.$data.chartTitle = pairName;
 
                 socket.emit('history', pairName);
+            },
+            select(e, info) {
+                let id = info.id;
+                let find = vue.$data.selected.find(s => s.id == info.id);
+                if (find){
+                    let index = vue.$data.selected.findIndex(s => s.id = info.id);
+                    vue.$data.selected = vue.$data.selected.filter(s => s.id != find.id);
+                    vue.$data.quote = vue.$data.quote.map(q => {if(q.id == id){q.selected = false;}return q;});
+                }else{
+                    vue.$data.selected.push(info);
+                    vue.$data.quote = vue.$data.quote.map(q => {if(q.id == id){q.selected = true;}return q;});
+                }
+            },
+            async refreshChart(){
+                this.$data.refreshing = true;
+                var myChart = echarts.init(document.getElementById('chart'));
+                legendData = [];
+                xAxisData = [];
+                seriesData = [];
+                for(let i = 0; i< vue.$data.selected.length; i++){
+                    let selected = vue.$data.selected[i];
+                    let exchangeName = selected.exchange;
+                    let symbol = selected.name.replace('\/','-');
+                    let limit = 1440 * vue.$data.refreshDays;
+                    let response = await axios.get(`/api/minute_history?exchange_name=${exchangeName}&symbol=${symbol}&limit=${limit}`);
+                    let legendName = `${selected.name}-${selected.exchange}`;
+                    legendData.push(legendName);
+                    xAxisData = response.data.map(r => r.minute);
+                    seriesData.push({
+                        symbol: "none",
+                        name: legendName,
+                        type: 'line',
+                        data: response.data.map(r => r.price)
+                    });
+
+                    var option = {
+                        title: {
+                            text: '666'
+                        },
+                        tooltip: {
+                            trigger: 'axis',
+                            axisPointer: {
+                                type: 'cross',
+                                label: {
+                                    backgroundColor: '#283b56'
+                                }
+                            }
+                        },
+                        dataZoom: [{
+                            type: 'inside',
+                            start: 0,
+                            end: 100
+                        }, {
+                            start: 0,
+                            end: 10,
+                            handleIcon: 'M10.7,11.9v-1.3H9.3v1.3c-4.9,0.3-8.8,4.4-8.8,9.4c0,5,3.9,9.1,8.8,9.4v1.3h1.3v-1.3c4.9-0.3,8.8-4.4,8.8-9.4C19.5,16.3,15.6,12.2,10.7,11.9z M13.3,24.4H6.7V23h6.6V24.4z M13.3,19.6H6.7v-1.4h6.6V19.6z',
+                            handleSize: '80%',
+                            handleStyle: {
+                                color: '#fff',
+                                shadowBlur: 3,
+                                shadowColor: 'rgba(0, 0, 0, 0.6)',
+                                shadowOffsetX: 2,
+                                shadowOffsetY: 2
+                            }
+                        }],
+                        legend: {
+                            data: legendData
+                        },
+                        xAxis: {
+                            data: xAxisData // data.history.map(r => dayjs(r.timestamp * 1000).format('MM-DD HH:mm'))
+                        },
+                        yAxis: [{
+                            type: 'value',
+                            scale: true,
+                            name: '价格',
+                            boundaryGap: [0.2, 0.2]
+                        },
+                            {
+                                type: 'value',
+                                scale: true,
+                                name: '价差%',
+                                max: 3,
+                                min: 0,
+                                boundaryGap: [0.2, 0.2]
+                            }],
+                        series: seriesData
+                    };
+
+                    // 使用刚指定的配置项和数据显示图表。
+                    myChart.setOption(option);
+
+                        // .then(response =>{
+                        //     console.log(response.data);
+                        // })
+                        // .catch(e => {
+                        //     console.error('get history error:', e)
+                        // });
+                }
+
+                this.$data.refreshing = false;
             }
         },
         mounted: function () {
@@ -232,6 +229,7 @@
                 .then(response => {
                     response.data.map(q => {
                         q.price = '-';
+                        q.selected = false;
                         return q;
                     });
                     _self.$data.quote = response.data;
@@ -245,94 +243,36 @@
 
     socket.on('init_price', data => {
         console.log('~', data);
-        for(let i in data){
+        for (let i in data) {
             [en, s] = i.split('_');
             pushData(en, s, data[i]);
         }
-    });
-    socket.on('init_table', data => {
-        vue.$data.tableData = data;
     });
     socket.on('price', data => {
         //把价格转换成二维数组中的一个元素
         vue.pushData(data.exchangeName, data.quoteName, data.price);
     });
-    socket.on('historyList', data => {
-        console.log(data);
-        var myChart = echarts.init(document.getElementById('chart'));
 
-        var option = {
-            title: {
-                text: '历史价格&套利机会'
-            },
-            tooltip: {
-                trigger: 'axis',
-                axisPointer: {
-                    type: 'cross',
-                    label: {
-                        backgroundColor: '#283b56'
-                    }
-                }
-            },
-            dataZoom: [{
-                type: 'inside',
-                start: 0,
-                end: 100
-            }, {
-                start: 0,
-                end: 10,
-                handleIcon: 'M10.7,11.9v-1.3H9.3v1.3c-4.9,0.3-8.8,4.4-8.8,9.4c0,5,3.9,9.1,8.8,9.4v1.3h1.3v-1.3c4.9-0.3,8.8-4.4,8.8-9.4C19.5,16.3,15.6,12.2,10.7,11.9z M13.3,24.4H6.7V23h6.6V24.4z M13.3,19.6H6.7v-1.4h6.6V19.6z',
-                handleSize: '80%',
-                handleStyle: {
-                    color: '#fff',
-                    shadowBlur: 3,
-                    shadowColor: 'rgba(0, 0, 0, 0.6)',
-                    shadowOffsetX: 2,
-                    shadowOffsetY: 2
-                }
-            }],
-            legend: {
-                data: ['uniswap', 'sushiswap', '价差%']
-            },
-            xAxis: {
-                data: data.history.map(r => dayjs(r.timestamp * 1000).format('MM-DD HH:mm'))
-            },
-            yAxis: [{
-                type: 'value',
-                scale: true,
-                name: '价格',
-                boundaryGap: [0.2, 0.2]
-            },
-                {
-                    type: 'value',
-                    scale: true,
-                    name: '价差%',
-                    max: 3,
-                    min: 0,
-                    boundaryGap: [0.2, 0.2]
-                }],
-            series: [{
-                symbol: "none",
-                name: 'uniswap',
-                type: 'line',
-                data: data.history.map(r => r.univ2Price)
-            }, {
-                symbol: "none",
-                name: 'sushiswap',
-                type: 'line',
-                data: data.history.map(r => r.sushiPrice)
-            }, {
-                symbol: "none",
-                name: '价差%',
-                type: 'bar',
-                yAxisIndex: 1,
-                data: data.history.map(r => r.arbitrageRate)
-            }]
-        };
-
-        // 使用刚指定的配置项和数据显示图表。
-        myChart.setOption(option);
-    })
+    let legendData = [];
+    let xAxisData = [];
+    let seriesData = [];
+    // [{
+    //     symbol: "none",
+    //     name: 'uniswap',
+    //     type: 'line',
+    //     data: data.history.map(r => r.univ2Price)
+    // }, {
+    //     symbol: "none",
+    //     name: 'sushiswap',
+    //     type: 'line',
+    //     data: data.history.map(r => r.sushiPrice)
+    // }, {
+    //     symbol: "none",
+    //     name: '价差%',
+    //     type: 'bar',
+    //     yAxisIndex: 1,
+    //     data: data.history.map(r => r.arbitrageRate)
+    // }];
 
 </script>
 </html>

@@ -7,6 +7,7 @@ template.defaults.rules.pop()
 const basicAuth = require('koa-basic-auth');
 const app = new koa()
 const path = require('path');
+const dayjs = require('dayjs');
 let cc = require('../ChainConfig');
 
 const {Sequelize} = require('sequelize');
@@ -14,23 +15,6 @@ const sql = new Sequelize('price_monitor', 'root', 'root', {
     host: 'localhost',
     dialect: 'mysql'
 });
-
-const low = require('lowdb');
-const FileSync = require('lowdb/adapters/FileSync');
-const adapter = new FileSync('database.json');
-const db = low(adapter);
-db.defaults({
-    history: {
-        'usdc-eth': [],
-        'wbtc-eth': [],
-        'eth-usdt': [],
-        'dai-eth': [],
-        'uni-eth': [],
-        'comp-eth': [],
-        'lend-eth': [],
-        'yfi-eth': [],
-    }
-}).write();
 
 //内存的table
 let priceData = [];
@@ -95,10 +79,24 @@ app.use(async (ctx) => {
         ctx.response.body = quote;
     }else if (ctx.request.path == '/api/minute_history'){
         let exchangeName = ctx.request.query.exchange_name || '';
+        let limit = ctx.request.query.limit || 1440;
         let [n0, n1] = ctx.request.query.symbol.split('-') || '';
         let tableName = `single_price_minute_${exchangeName}_${n0}_${n1}`;
-        const history = await sql.query("SELECT * FROM "+tableName+" order by minute asc limit 10080;", {type: 'SELECT'});
-        ctx.response.body = history;
+        const history = await sql.query("SELECT * FROM "+tableName+" order by minute asc limit "+limit+";", {type: 'SELECT'});
+        let now = new dayjs();
+        let begin = now.subtract(limit, 'm');
+        let data = [];
+        while(begin.unix() < now.unix()){
+            let m = begin.format('YYYYMMDDHHmm');
+            let find = history.find(h => h.minute == m);
+            let price = find ? find.price : null
+            data.push({
+                minute: m,
+                price,
+            })
+            begin = begin.add(1, 'm');
+        }
+        ctx.response.body = data;
     }else{
         await ctx.render('new', {cc: JSON.stringify(cc)});
     }

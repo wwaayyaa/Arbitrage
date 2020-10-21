@@ -123,7 +123,7 @@ async function collectCeFi(exchangeName, quoteName, tableName, socket) {
                 let response = await axios.get(`https://www.okex.com/api/spot/v3/instruments/${symbol}/ticker`);
                 price = response.data.last;
             } catch (e) {
-                console.error(`bian error: ${exchangeName}, ${quoteName}, ${e}`);
+                console.error(`ok error: ${exchangeName}, ${quoteName}, ${e}`);
             }
         }
 

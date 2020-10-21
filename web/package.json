@@ -11,7 +11,7 @@
   "dependencies": {
     "art-template": "^4.13.2",
     "bignumber.js": "^9.0.0",
-    "dayjs": "^1.9.1",
+    "dayjs": "^1.9.3",
     "koa": "^2.13.0",
     "koa-art-template": "^1.1.1",
     "koa-basic-auth": "^4.0.0",
