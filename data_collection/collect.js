@@ -58,6 +58,7 @@ async function main() {
         } else {
             collectCeFi(q.exchange, q.name, tableName, socket);
         }
+        await sleep(100);
     }
 }
 
