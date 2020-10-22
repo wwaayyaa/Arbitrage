@@ -87,12 +87,12 @@ async function collect(exchangeName, pairName, socket, tableName, quoteName, rev
         // console.log(exchangeName, pairName, info);
 
         //socketio
-        socket.emit('collected', {exchangeName, quoteName, price: info['price']});
+        socket.emit('collected', {exchangeName, quoteName, price: (reverse ? (1 / info['price']).toFixed(8) : info['price'])});
 
         let now = new dayjs();
         sql.query("insert into " + tableName + " (minute, price) values (?, ?) on duplicate key update price = values(price);",
             {
-                replacements: [now.format("YYYYMMDDHHmm"), (reverse ? 1 / info['price'] : info['price'])],
+                replacements: [now.format("YYYYMMDDHHmm"), (reverse ? (1 / info['price']).toFixed(8) : info['price'])],
                 type: 'INSERT'
             })
 

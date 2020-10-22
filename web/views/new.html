@@ -27,7 +27,11 @@
             border-radius: 12px;
         }
         .block.selected{
-            border: 5px solid rgb(13 124 234);
+            border: 2px solid rgb(13 124 234);
+            border-radius: 10px;
+            border-image-source: linear-gradient(45deg, gold, deeppink);
+            border-image-slice: 1;
+            border-image-repeat: stretch;
         }
         .block:hover{
             background: #a5baf5;
@@ -40,7 +44,7 @@
             background: #efb90b;
         }
         .block.ok{
-            background: #112c7a;
+            background: #1b3fa7;
         }
         .block.uniswap{
             background: #ff017a;
@@ -66,6 +70,7 @@
         <div v-for="q in quote" class="block" @click="select($event, q)" :class="blockClass(q)">
             <div>{{q.name}} - {{q.exchange}}</div>
             <div class="price">{{q.price}}</div>
+            <div>{{q.selected ? '✔️️' : ''}}</div>
         </div>
     </div>
     </el-row>
@@ -159,6 +164,61 @@
                     alert('天数只能在1~30天之内');
                     return;
                 }
+                let step = [];
+                if (vue.$data.selected.length != 3) {
+                    alert('3个环形交易对才能三角套利');
+                    return;
+                }else if(vue.$data.indexType == 'triangular_arbitrage'){
+                    //取出第一个交易对，按照a/b去第二或者第三个交易对去找有b的。 找到的为第二顺位，并调整计算顺序，剩下的是第三顺位，也要调整顺序。最后结果就是rate
+                    let [c00, c01] = vue.$data.selected[0].name.replace('wbtc', 'btc').split('/');
+                    let [c10, c11] = vue.$data.selected[1].name.replace('wbtc', 'btc').split('/');
+                    let [c20, c21] = vue.$data.selected[2].name.replace('wbtc', 'btc').split('/');
+
+                    console.log(c00, c01, c10, c11);
+                    if((c00 == c10 && c01 == c11) || (c00 == c11 && c01 == c10)){
+                        alert('不能有一样的交易对');
+                        return;
+                    }
+
+                    //第二顺位
+                    if(c01 == c10){
+                        if(c11 == c20){
+                            step = ['*', '*'];
+                        }
+                        if (c11 == c21){
+                            step = ['*', '/']
+                        }
+                    }
+                    else if(c01 == c11){
+                        if(c10 == c20){
+                            step = ['/', '*'];
+                        }
+                        if (c10 == c21){
+                            step = ['/', '/']
+                        }
+                    }
+                    else if (c01 == c20){
+                        if(c21 == c10){
+                            step = ['*', '*'];
+                        }
+                        if (c21 == c11){
+                            step = ['/', '*']
+                        }
+                    }
+                    else if (c01 == c21){
+                        if(c20 == c10){
+                            step = ['*', '/'];
+                        }
+                        if (c20 == c11){
+                            step = ['/', '/']
+                        }
+                    }
+                    if(step.length == 0){
+                        alert('无法三角套利');
+                        return;
+                    }
+
+                }
                 for(let i = 0; i< vue.$data.selected.length; i++){
                     let selected = vue.$data.selected[i];
                     let exchangeName = selected.exchange;
@@ -183,7 +243,6 @@
                 }
 
                 if(seriesData.length >= 2 && vue.$data.indexType == 'arbitrage'){
-                    console.log('@!#!@#');
                     let rateData = [];
                     //计算比例
                     for(let i = 0; i<xAxisData.length;i++){
@@ -214,8 +273,28 @@
                         data: rateData
                     });
                 }
-                if(seriesData.length == 3 && vue.$data.indexType == 'triangular_arbitrage'){
-                    //TODO
+                if(vue.$data.indexType == 'triangular_arbitrage'){
+                    let rateData = [];
+                    //计算比例
+                    for (let i = 0; i < xAxisData.length; i++) {
+                        let rate = 0;
+                        if (seriesData[0].data[i] > 0 && seriesData[1].data[i] > 0 && seriesData[2].data[i] > 0) {
+                            rate = eval(seriesData[0].data[i] + step[0] + seriesData[1].data[i] + step[1] + seriesData[2].data[i]);
+                            rate = (Math.abs(1 - rate) * 100);
+                        } else {
+                            rate = 0;
+                        }
+                        rateData.push(rate);
+                    }
+                    // console.log(rateData);
+                    legendData.push('价差比例%');
+                    seriesData.push({
+                        symbol: "none",
+                        name: '价差比例%',
+                        type: 'bar',
+                        yAxisIndex: 1,
+                        data: rateData
+                    });
                 }
 
                 var option = {

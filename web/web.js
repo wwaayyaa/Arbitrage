@@ -1,5 +1,7 @@
 require('dotenv').config();
 const koa = require('koa');
+const path = require('path');
+const koaStatic = require('koa-static');
 const render = require('koa-art-template')
 const template = require('art-template')
 template.defaults.rules.pop()
@@ -7,7 +9,6 @@ template.defaults.rules.pop()
 // rule.test = new RegExp(rule.test.source.replace('<%', '<\\\?').replace('%>', '\\\?>'));
 const basicAuth = require('koa-basic-auth');
 const app = new koa()
-const path = require('path');
 const dayjs = require('dayjs');
 let cc = require('../ChainConfig');
 
@@ -73,6 +74,7 @@ app.use(async (ctx, next) => {
     }
     // ctx.body = 'Hello World';
 });
+app.use(koaStatic(path.join(__dirname, './static')));
 app.use(basicAuth({ name: 'poolin', pass: '' }));
 app.use(async (ctx) => {
     if (ctx.request.path == '/api/quote'){
