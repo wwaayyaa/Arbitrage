@@ -74,6 +74,16 @@
         </div>
     </div>
     </el-row>
+    <hr>
+    <el-row>
+    <div style="display: flex; flex-wrap: wrap">
+        <div v-for="q in selected" class="block" @click="select($event, q)" :class="blockClass(q)">
+            <div>{{q.name}} - {{q.exchange}}</div>
+            <div class="price">{{q.price}}</div>
+        </div>
+    </div>
+    </el-row>
+    <hr>
     <el-row>
     <div>
         <el-input placeholder="几天" v-model="refreshDays" style="width: 120px">
