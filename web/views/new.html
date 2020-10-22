@@ -165,59 +165,58 @@
                     return;
                 }
                 let step = [];
-                if (vue.$data.selected.length != 3) {
-                    alert('3个环形交易对才能三角套利');
-                    return;
-                }else if(vue.$data.indexType == 'triangular_arbitrage'){
-                    //取出第一个交易对，按照a/b去第二或者第三个交易对去找有b的。 找到的为第二顺位，并调整计算顺序，剩下的是第三顺位，也要调整顺序。最后结果就是rate
-                    let [c00, c01] = vue.$data.selected[0].name.replace('wbtc', 'btc').split('/');
-                    let [c10, c11] = vue.$data.selected[1].name.replace('wbtc', 'btc').split('/');
-                    let [c20, c21] = vue.$data.selected[2].name.replace('wbtc', 'btc').split('/');
-
-                    console.log(c00, c01, c10, c11);
-                    if((c00 == c10 && c01 == c11) || (c00 == c11 && c01 == c10)){
-                        alert('不能有一样的交易对');
+                if (vue.$data.indexType == 'triangular_arbitrage') {
+                    if (vue.$data.selected.length != 3) {
+                        alert('3个环形交易对才能三角套利');
                         return;
-                    }
+                    } else {
+                        //取出第一个交易对，按照a/b去第二或者第三个交易对去找有b的。 找到的为第二顺位，并调整计算顺序，剩下的是第三顺位，也要调整顺序。最后结果就是rate
+                        let [c00, c01] = vue.$data.selected[0].name.replace('wbtc', 'btc').split('/');
+                        let [c10, c11] = vue.$data.selected[1].name.replace('wbtc', 'btc').split('/');
+                        let [c20, c21] = vue.$data.selected[2].name.replace('wbtc', 'btc').split('/');
 
-                    //第二顺位
-                    if(c01 == c10){
-                        if(c11 == c20){
-                            step = ['*', '*'];
+                        console.log(c00, c01, c10, c11);
+                        if ((c00 == c10 && c01 == c11) || (c00 == c11 && c01 == c10)) {
+                            alert('不能有一样的交易对');
+                            return;
                         }
-                        if (c11 == c21){
-                            step = ['*', '/']
-                        }
-                    }
-                    else if(c01 == c11){
-                        if(c10 == c20){
-                            step = ['/', '*'];
-                        }
-                        if (c10 == c21){
-                            step = ['/', '/']
-                        }
-                    }
-                    else if (c01 == c20){
-                        if(c21 == c10){
-                            step = ['*', '*'];
-                        }
-                        if (c21 == c11){
-                            step = ['/', '*']
-                        }
-                    }
-                    else if (c01 == c21){
-                        if(c20 == c10){
-                            step = ['*', '/'];
-                        }
-                        if (c20 == c11){
-                            step = ['/', '/']
-                        }
-                    }
-                    if(step.length == 0){
-                        alert('无法三角套利');
-                        return;
-                    }
 
+                        //第二顺位
+                        if (c01 == c10) {
+                            if (c11 == c20) {
+                                step = ['*', '*'];
+                            }
+                            if (c11 == c21) {
+                                step = ['*', '/']
+                            }
+                        } else if (c01 == c11) {
+                            if (c10 == c20) {
+                                step = ['/', '*'];
+                            }
+                            if (c10 == c21) {
+                                step = ['/', '/']
+                            }
+                        } else if (c01 == c20) {
+                            if (c21 == c10) {
+                                step = ['*', '*'];
+                            }
+                            if (c21 == c11) {
+                                step = ['/', '*']
+                            }
+                        } else if (c01 == c21) {
+                            if (c20 == c10) {
+                                step = ['*', '/'];
+                            }
+                            if (c20 == c11) {
+                                step = ['/', '/']
+                            }
+                        }
+                        if (step.length == 0) {
+                            alert('无法三角套利');
+                            return;
+                        }
+
+                    }
                 }
                 for(let i = 0; i< vue.$data.selected.length; i++){
                     let selected = vue.$data.selected[i];
