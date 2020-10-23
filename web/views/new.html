@@ -72,6 +72,11 @@
             font-weight: 700;
             font-family: "Roboto Mono", monospace;
         }
+        .block .pair {
+            font-size: 22px;
+            font-weight: 700;
+            font-family: "Roboto Mono", monospace;
+        }
     </style>
 
 </head>
@@ -87,7 +92,7 @@
     <el-row>
     <div style="display: flex; flex-wrap: wrap">
         <div v-for="q in quote" class="block" @click="select($event, q)" :class="blockClass(q)" v-if="q.view">
-            <div><b>{{q.name.toUpperCase()}}</b> - {{q.exchange}}</div>
+            <div><b class="pair">{{q.name.toUpperCase()}}</b> </div>
             <div class="price">{{q.price}}</div>
             <div>{{q.selected ? '✔️️' : ''}}</div>
         </div>
@@ -99,7 +104,7 @@
 
         <div style="display: flex; flex-wrap: wrap">
             <div v-for="q in selected" class="block" @click="select($event, q)" :class="blockClass(q)">
-                <div>{{q.name}} - {{q.exchange}}</div>
+                <div><b class="pair">{{q.name}}</b> </div>
                 <div class="price">{{q.price}}</div>
             </div>
         </div>
