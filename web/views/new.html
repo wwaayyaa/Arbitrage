@@ -31,6 +31,8 @@
         }
         .block.selected{
             border: 2px solid rgb(13 124 234);
+            height: 98px;
+            width: 218px;
             border-radius: 10px;
             border-image-source: linear-gradient(45deg, gold, deeppink);
             border-image-slice: 1;
@@ -92,15 +94,17 @@
     </div>
     </el-row>
     <hr>
-    <el-row>
-    <div style="display: flex; flex-wrap: wrap">
-        <div v-for="q in selected" class="block" @click="select($event, q)" :class="blockClass(q)">
-            <div>{{q.name}} - {{q.exchange}}</div>
-            <div class="price">{{q.price}}</div>
+    <el-row v-if="selected.length > 0">
+        <h5 style="padding-left: 10px">已选</h5>
+
+        <div style="display: flex; flex-wrap: wrap">
+            <div v-for="q in selected" class="block" @click="select($event, q)" :class="blockClass(q)">
+                <div>{{q.name}} - {{q.exchange}}</div>
+                <div class="price">{{q.price}}</div>
+            </div>
         </div>
-    </div>
+        <hr>
     </el-row>
-    <hr>
     <el-row>
     <div>
         <el-input placeholder="几天" v-model="refreshDays" style="width: 120px">
@@ -336,10 +340,10 @@
                         rateData.push(rate);
                     }
                     // console.log(rateData);
-                    legendData.push('价差比例%');
+                    legendData.push('比例%');
                     seriesData.push({
                         symbol: "none",
-                        name: '价差比例%',
+                        name: '比例%',
                         type: 'bar',
                         yAxisIndex: 1,
                         data: rateData
