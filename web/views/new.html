@@ -188,13 +188,16 @@
                 }else{
                     str = str.split(' ');
                     vue.$data.quote = vue.$data.quote.map(q => {
+                        let view = false;
                         for(let i = 0; i< str.length; i++){
                             if(q.name.indexOf(str[i]) != -1 || q.exchange.indexOf(str[i]) != -1){
-                                q.view = true;
-                                return q;
+                                view = true;
+                            }else{
+                                view = false;
+                                break;
                             }
                         }
-                        q.view = false;
+                        q.view = view;
                         return q;
                     });
                 }
