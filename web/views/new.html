@@ -82,7 +82,7 @@
 </head>
 <body>
 <div id="app">
-    <el-row>
+    <el-row style="padding-left: 10px">
         <div style="margin-top: 15px;">
             <el-input placeholder="请输入内容" v-model="searchStr" @input="search" class="input-with-select" style="width:200px">
                 <el-button slot="append" icon="el-icon-search"></el-button>
@@ -111,7 +111,7 @@
         <hr>
     </el-row>
     <el-row>
-    <div>
+    <div style="padding-left: 10px">
         <el-input placeholder="几天" v-model="refreshDays" style="width: 120px">
             <template slot="append">天</template>
         </el-input>
@@ -123,7 +123,7 @@
         <el-button @click="refreshChart" type="primary">画图</el-button>
     </div>
     </el-row>
-    <div id="chart" style="width: 1680px;height:800px;"></div>
+    <div id="chart" style="width: 1670px;height:800px;"></div>
 </div>
 </body>
 <!-- import Vue before Element -->
