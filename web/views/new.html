@@ -136,9 +136,9 @@
     let pushData = function (exchangeName, quoteName, price) {
         let key = `${exchangeName}-${quoteName}`;
         priceData[key] = price;
-        this.$data.quote.forEach((e, i) => {
+        vue.$data.quote.forEach((e, i) => {
             if (e.exchange == exchangeName && e.name == quoteName) {
-                this.$data.quote[i].price = price;
+                vue.$data.quote[i].price = price;
             }
         });
     };
@@ -168,7 +168,7 @@
                 return ret;
             },
             chart(event, pairName) {
-                console.log(event, pairName);
+                // console.log(event, pairName);
                 this.$data.chartVisible = true;
 
                 socket.emit('history', pairName);
@@ -430,12 +430,14 @@
 
     socket.on('init_price', data => {
         // console.log('~', data);
+        //{ok-btc/usdt: 12916.2, ...}
         for (let i in data) {
-            [en, s] = i.split('_');
+            [en, s] = i.split('-');
             pushData(en, s, data[i]);
         }
     });
     socket.on('price', data => {
+        // console.log('~', data);
         //把价格转换成二维数组中的一个元素
         vue.pushData(data.exchangeName, data.quoteName, data.price);
     });

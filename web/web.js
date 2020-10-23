@@ -19,8 +19,7 @@ const sql = new Sequelize(process.env.DB_DATABASE, process.env.DB_USER, process.
 });
 
 //内存的table
-let priceData = [];
-let exchanges = Object.keys(cc.exchange);
+let priceData = {};
 
 render(app, {
     root: path.join(__dirname, 'views'),
@@ -29,19 +28,22 @@ render(app, {
 });
 const server = require('http').createServer(app.callback())
 const io = require('socket.io')(server, {path: '/s'})
-
 //监听connect事件
 io.on('connection', socket => {
     // console.log('connected');
     socket.on('collected', data => {
-        console.log('~', data);
+        // console.log('~', data);
         pushData(data.exchangeName, data.quoteName, data.price);
-        console.log('~~', priceData);
+        // console.log('~~', priceData);
 
         socket.broadcast.emit('price', data);
     });
 
-    socket.emit('init_price', priceData);
+    socket.on('init', data => {
+        socket.emit('init_price', priceData);
+    });
+
+    // socket.emit('init_price', priceData);
 
     // socket.on('history', (pairName) => {
     //     console.log('pairName', pairName);
@@ -113,8 +115,8 @@ let pushData = function (exchangeName, quoteName, price) {
 };
 
 
-setInterval(() => {
+// setInterval(() => {
     //每次把内存数据放到db中
-
-}, 6 * 1000);
+    // console.log('pp', priceData);
+// }, 1 * 1000);
 
