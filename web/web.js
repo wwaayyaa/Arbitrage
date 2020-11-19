@@ -37,6 +37,31 @@ io.on('connection', socket => {
         // console.log('~~', priceData);
 
         socket.broadcast.emit('price', data);
+
+        //监控币安和uni的eth/usdt价格。
+        if(data.quoteName=='eth/usdt' && (data.exchangeName == 'bian' || data.exchangeName == 'uniswap')){
+            let key = `${data.exchangeName}-${data.quoteName}`;
+            let uniKey = `uniswap-eth/usdt`;
+            let bianKey = `bian-eth/usdt`;
+            let uniPrice = priceData[uniKey];
+            let bianPrice = priceData[bianKey];
+            //兑币价差，如果达到1%，就进行买卖。
+            if(Math.abs(bianPrice / uniPrice - 1) >= 0.01){
+                //谁的价格高，就在这个交易所卖出eth，在另外一边买入eth
+                if(bianPrice > uniPrice){
+                    //e.g.  eth/usdt: 380 > 370
+                    //交易前还要判断余额是否足够，够的情况下才能交易。
+                    let usdt = new web3.eth.Contract(CC.token.usdt.abi, CC.token.usdt.address);
+                    utils.fromWei(await usdt.methods.balanceOf(acc.address).call(), 'ether');
+                    //交易前抢锁，有锁才能交易并记录数据。
+
+                    //TODO bianTrade(eth, usdt), uniTrade(usdt, eth)
+                }else{
+                    //TODO bianTrade(usdt, eth), uniTrade(eth, usdt)
+                }
+            }
+
+        }
     });
 
     socket.on('init', data => {
