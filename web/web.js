@@ -12,6 +12,51 @@ const app = new koa()
 const dayjs = require('dayjs');
 let cc = require('../ChainConfig');
 
+const Web3 = require('web3');
+let web3 = new Web3('http://0.0.0.0:9545');
+
+const Binance = require('node-binance-api');
+const binance = new Binance().options({
+    APIKEY: process.env.BINANCE_API_KEY,
+    APISECRET: process.env.BINANCE_API_SECRET
+});
+
+(async function () {
+    // console.log(await binance.balance());
+    try {
+        /* {
+          symbol: 'ETHUSDT',
+          orderId: 2064332688,
+          orderListId: -1,
+          clientOrderId: 'JBosMtrqYhMiH1eYaGgCKh',
+          transactTime: 1605862412092,
+          price: '0.00000000',
+          origQty: '0.10000000',
+          executedQty: '0.10000000',
+          cummulativeQuoteQty: '49.86200000',
+          status: 'FILLED',
+          timeInForce: 'GTC',
+          type: 'MARKET',
+          side: 'BUY',
+          fills: [
+            {
+              price: '498.62000000',
+              qty: '0.10000000',
+              commission: '0.00010000',
+              commissionAsset: 'ETH',
+              tradeId: 208970173
+            }
+          ]
+        }
+        */
+        // let ret = await binance.marketBuy('ETHUSDT', 0.1)
+        // let ret = await binance.marketSell('ETHUSDT', 0.1998)
+        // console.log('ret', ret);
+    } catch (e) {
+        console.log('ee', e)
+    }
+
+})()
 const {Sequelize} = require('sequelize');
 const sql = new Sequelize(process.env.DB_DATABASE, process.env.DB_USER, process.env.DB_PASS, {
     host: process.env.DB_HOST,
@@ -20,6 +65,9 @@ const sql = new Sequelize(process.env.DB_DATABASE, process.env.DB_USER, process.
 
 //内存的table
 let priceData = {};
+
+let uniRoute2 = new web3.eth.Contract(cc.exchange.uniswap.router02.abi, cc.exchange.uniswap.router02.address)
+let tradeETH = 0.1;
 
 render(app, {
     root: path.join(__dirname, 'views'),
@@ -31,7 +79,7 @@ const io = require('socket.io')(server, {path: '/s'})
 //监听connect事件
 io.on('connection', socket => {
     // console.log('connected');
-    socket.on('collected', data => {
+    socket.on('collected', async (data) => {
         // console.log('~', data);
         pushData(data.exchangeName, data.quoteName, data.price);
         // console.log('~~', priceData);
@@ -39,24 +87,37 @@ io.on('connection', socket => {
         socket.broadcast.emit('price', data);
 
         //监控币安和uni的eth/usdt价格。
-        if(data.quoteName=='eth/usdt' && (data.exchangeName == 'bian' || data.exchangeName == 'uniswap')){
+        if (data.quoteName == 'eth/usdt' && (data.exchangeName == 'bian' || data.exchangeName == 'uniswap')) {
             let key = `${data.exchangeName}-${data.quoteName}`;
             let uniKey = `uniswap-eth/usdt`;
             let bianKey = `bian-eth/usdt`;
             let uniPrice = priceData[uniKey];
             let bianPrice = priceData[bianKey];
             //兑币价差，如果达到1%，就进行买卖。
-            if(Math.abs(bianPrice / uniPrice - 1) >= 0.01){
+            if (Math.abs(bianPrice / uniPrice - 1) >= 0.01) {
                 //谁的价格高，就在这个交易所卖出eth，在另外一边买入eth
-                if(bianPrice > uniPrice){
+                if (bianPrice > uniPrice) {
                     //e.g.  eth/usdt: 380 > 370
                     //交易前还要判断余额是否足够，够的情况下才能交易。
                     let usdt = new web3.eth.Contract(CC.token.usdt.abi, CC.token.usdt.address);
-                    utils.fromWei(await usdt.methods.balanceOf(acc.address).call(), 'ether');
+                    let usdtBalance = await usdt.methods.balanceOf(acc.address).call();
+                    let ethBalance = bianBalance('eth');
+                    if (ethBalance < tradeETH || usdtBalance / uniPrice < tradeETH) {
+                        return;
+                    }
                     //交易前抢锁，有锁才能交易并记录数据。
+                    try {
+                        await uniRoute2.methods
+                            .swapExactTokensForETH(utils.toWei(tradeETH * uniPrice, 'ether'), 0, [CC.token.usdt.address, CC.token.weth.address], acc.address, timestamp + 300)
+                            .send({from: acc.address, gas: 5000000})
+
+                        let ret = await binance.marketSell('ETHUSDT', tradeETH)
+                    }catch (e) {
+                        //todo
+                    }
 
                     //TODO bianTrade(eth, usdt), uniTrade(usdt, eth)
-                }else{
+                } else {
                     //TODO bianTrade(usdt, eth), uniTrade(eth, usdt)
                 }
             }
@@ -102,12 +163,12 @@ app.use(async (ctx, next) => {
     // ctx.body = 'Hello World';
 });
 app.use(koaStatic(path.join(__dirname, './static')));
-app.use(basicAuth({ name: 'poolin', pass: '' }));
+app.use(basicAuth({name: 'poolin', pass: ''}));
 app.use(async (ctx) => {
-    if (ctx.request.path == '/api/quote'){
+    if (ctx.request.path == '/api/quote') {
         const quote = await sql.query("SELECT * FROM `quote` where enabled = 1;", {type: 'SELECT'});
         ctx.response.body = quote;
-    }else if (ctx.request.path == '/api/minute_history'){
+    } else if (ctx.request.path == '/api/minute_history') {
         let exchangeName = ctx.request.query.exchange_name || '';
         let limit = ctx.request.query.limit || 1440;
         let [n0, n1] = ctx.request.query.symbol.split('-') || '';
@@ -116,7 +177,7 @@ app.use(async (ctx) => {
         let now = new dayjs();
         let begin = now.subtract(limit, 'm');
         let data = [];
-        while(begin.unix() < now.unix()){
+        while (begin.unix() < now.unix()) {
             let m = begin.format('YYYYMMDDHHmm');
             let find = history.find(h => h.minute == m);
             let price = find ? find.price : null
@@ -127,7 +188,7 @@ app.use(async (ctx) => {
             begin = begin.add(1, 'm');
         }
         ctx.response.body = data;
-    }else{
+    } else {
         await ctx.render('new', {cc: JSON.stringify(cc)});
     }
 });
@@ -141,7 +202,7 @@ let pushData = function (exchangeName, quoteName, price) {
 
 
 // setInterval(() => {
-    //每次把内存数据放到db中
-    // console.log('pp', priceData);
+//每次把内存数据放到db中
+// console.log('pp', priceData);
 // }, 1 * 1000);
 
