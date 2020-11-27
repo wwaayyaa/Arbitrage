@@ -22,7 +22,8 @@ const binance = new Binance().options({
 });
 
 (async function () {
-    // console.log(await binance.balance());
+    console.log((await binance.balance())['ETH']['available']);
+    return;
     try {
         /* {
           symbol: 'ETHUSDT',
@@ -101,7 +102,7 @@ io.on('connection', socket => {
                     //交易前还要判断余额是否足够，够的情况下才能交易。
                     let usdt = new web3.eth.Contract(CC.token.usdt.abi, CC.token.usdt.address);
                     let usdtBalance = await usdt.methods.balanceOf(acc.address).call();
-                    let ethBalance = bianBalance('eth');
+                    let ethBalance = (await binance.balance())['ETH']['available'];
                     if (ethBalance < tradeETH || usdtBalance / uniPrice < tradeETH) {
                         return;
                     }
@@ -112,6 +113,9 @@ io.on('connection', socket => {
                             .send({from: acc.address, gas: 5000000})
 
                         let ret = await binance.marketSell('ETHUSDT', tradeETH)
+                        if(ret.status != 'FILLED'){
+                            return;
+                        }
                     }catch (e) {
                         //todo
                     }
