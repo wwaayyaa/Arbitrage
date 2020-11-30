@@ -91,41 +91,7 @@ io.on('connection', socket => {
         //监控币安和uni的eth/usdt价格。
         if (data.quoteName == 'eth/usdt' && (data.exchangeName == 'bian' || data.exchangeName == 'uniswap')) {
             let key = `${data.exchangeName}-${data.quoteName}`;
-            let uniKey = `uniswap-eth/usdt`;
-            let bianKey = `bian-eth/usdt`;
-            let uniPrice = priceData[uniKey];
-            let bianPrice = priceData[bianKey];
-            //兑币价差，如果达到1%，就进行买卖。
-            if (Math.abs(bianPrice / uniPrice - 1) >= 0.01) {
-                //谁的价格高，就在这个交易所卖出eth，在另外一边买入eth
-                if (bianPrice > uniPrice) {
-                    //e.g.  eth/usdt: 380 > 370
-                    //交易前还要判断余额是否足够，够的情况下才能交易。
-                    let usdt = new web3.eth.Contract(CC.token.usdt.abi, CC.token.usdt.address);
-                    let usdtBalance = await usdt.methods.balanceOf(acc.address).call();
-                    let ethBalance = (await binance.balance())['ETH']['available'];
-                    if (ethBalance < tradeETH || usdtBalance / uniPrice < tradeETH) {
-                        return;
-                    }
-                    //交易前抢锁，有锁才能交易并记录数据。
-                    try {
-                        await uniRoute2.methods
-                            .swapExactTokensForETH(utils.toWei(tradeETH * uniPrice, 'ether'), 0, [CC.token.usdt.address, CC.token.weth.address], acc.address, timestamp + 300)
-                            .send({from: acc.address, gas: 5000000})
-
-                        let ret = await binance.marketSell('ETHUSDT', tradeETH)
-                        if(ret.status != 'FILLED'){
-                            return;
-                        }
-                    }catch (e) {
-                        //todo
-                    }
-
-                    //TODO bianTrade(eth, usdt), uniTrade(usdt, eth)
-                } else {
-                    //TODO bianTrade(usdt, eth), uniTrade(eth, usdt)
-                }
-            }
+            job = true;
 
         }
     });
@@ -206,11 +172,52 @@ let pushData = function (exchangeName, quoteName, price) {
 };
 
 
-let jobs = [];
-//串行执行
-setInterval(() => {
+let job = false;
 
-}, 1 * 100);
+//串行执行任务
+(async () => {
+    if (job) {
+        console.log('do job');
+        let uniKey = `uniswap-eth/usdt`;
+        let bianKey = `bian-eth/usdt`;
+        let uniPrice = priceData[uniKey];
+        let bianPrice = priceData[bianKey];
+        //兑币价差，如果达到1%，就进行买卖。
+        if (Math.abs(bianPrice / uniPrice - 1) >= 0.01) {
+            //谁的价格高，就在这个交易所卖出eth，在另外一边买入eth
+            if (bianPrice > uniPrice) {
+                //e.g.  eth/usdt: 380 > 370
+                //交易前还要判断余额是否足够，够的情况下才能交易。
+                let usdt = new web3.eth.Contract(CC.token.usdt.abi, CC.token.usdt.address);
+                let usdtBalance = await usdt.methods.balanceOf(acc.address).call();
+                let ethBalance = (await binance.balance())['ETH']['available'];
+                if (ethBalance < tradeETH || usdtBalance / uniPrice < tradeETH) {
+                    return;
+                }
+                //交易前抢锁，有锁才能交易并记录数据。
+                try {
+                    await uniRoute2.methods
+                        .swapExactTokensForETH(utils.toWei(tradeETH * uniPrice, 'ether'), 0, [CC.token.usdt.address, CC.token.weth.address], acc.address, timestamp + 300)
+                        .send({from: acc.address, gas: 5000000})
+
+                    let ret = await binance.marketSell('ETHUSDT', tradeETH)
+                    if(ret.status != 'FILLED'){
+                        return;
+                    }
+                }catch (e) {
+                    //todo
+                }
+
+                //TODO bianTrade(eth, usdt), uniTrade(usdt, eth)
+            } else {
+                //TODO bianTrade(usdt, eth), uniTrade(eth, usdt)
+            }
+        }
+
+
+        job = false;
+    }
+})();
 
 async function ding(msg){
     // let msg = {
