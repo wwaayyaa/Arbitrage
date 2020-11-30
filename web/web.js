@@ -11,6 +11,7 @@ const basicAuth = require('koa-basic-auth');
 const app = new koa()
 const dayjs = require('dayjs');
 let cc = require('../ChainConfig');
+const axios = require('axios')
 
 const Web3 = require('web3');
 let web3 = new Web3('http://0.0.0.0:9545');
@@ -22,7 +23,7 @@ const binance = new Binance().options({
 });
 
 (async function () {
-    console.log((await binance.balance())['ETH']['available']);
+    ding()
     return;
     try {
         /* {
@@ -205,8 +206,29 @@ let pushData = function (exchangeName, quoteName, price) {
 };
 
 
-// setInterval(() => {
-//每次把内存数据放到db中
-// console.log('pp', priceData);
-// }, 1 * 1000);
+let jobs = [];
+//串行执行
+setInterval(() => {
 
+}, 1 * 100);
+
+async function ding(msg){
+    // let msg = {
+    //     "msgtype": "markdown",
+    //     "markdown": {
+    //         "title":"杭州天气",
+    //         "text": "#### 杭州天气 @150XXXXXXXX \n> 9度，西北风1级，空气良89，相对温度73%\n> ![screenshot](https://img.alicdn.com/tfs/TB1NwmBEL9TBuNjy1zbXXXpepXa-2400-1218.png)\n> ###### 10点20分发布 [天气](https://www.dingtalk.com) \n"
+    //     },
+    //     "at": {
+    //         "atMobiles": [
+    //             "150XXXXXXXX"
+    //         ],
+    //         "isAtAll": false
+    //     }
+    // };
+    try {
+        let response = await axios.post('https://oapi.dingtalk.com/robot/send?access_token=612342ba40defdd26f3228f35bbd0aeddcf9de619d9d4f9f80c2b47d39e4d0d0', msg)
+    } catch (e) {
+        console.error(`huobi error: ${exchangeName}, ${quoteName}, ${e}`);
+    }
+}
