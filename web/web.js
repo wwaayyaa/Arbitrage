@@ -22,6 +22,14 @@ const binance = new Binance().options({
     APISECRET: process.env.BINANCE_API_SECRET
 });
 
+let msgTPL = {
+    "msgtype": "markdown",
+    "markdown": {
+        "title":"",
+        "text": "",
+    },
+};
+
 (async function () {
     ding()
     return;
@@ -177,7 +185,6 @@ let pushData = function (exchangeName, quoteName, price) {
     priceData[key] = price;
 };
 
-
 let job = false;
 
 //串行执行任务
@@ -191,12 +198,10 @@ let job = false;
             let bianPrice = priceData[bianKey];
 
             //先发个通知
-            let msg = {
-                "msgtype": "markdown",
-                "markdown": {
-                    "title":"ding~ 发现搬砖机会，准备干他。",
-                    "text": `币安：${bianPrice}， uniswap：${uniPrice}`
-                },
+            let msg = msgTPL.markdown;
+            msg.markdown = {
+                "title":"ding~ 发现搬砖机会，准备干他。",
+                "text": `币安：${bianPrice}， uniswap：${uniPrice}`
             };
 
             //兑币价差，如果达到1%，就进行买卖。
@@ -210,17 +215,29 @@ let job = false;
                     let usdtBalance = await usdt.methods.balanceOf(acc.address).call();
                     let ethBalance = (await binance.balance())['ETH']['available'];
                     if (ethBalance < tradeETH || usdtBalance / uniPrice < tradeETH) {
+                        let msg = msgTPL;
+                        msg.markdown = {
+                            "title":"余额不足，无法执行。",
+                            "text": `余额不足，无法执行`
+                        };
+                        ding(msg);
                         return;
                     }
                     try {
-                        await uniRoute2.methods
-                            .swapExactTokensForETH(utils.toWei(tradeETH * uniPrice, 'ether'), 0, [CC.token.usdt.address, CC.token.weth.address], acc.address, timestamp + 300)
-                            .send({from: acc.address, gas: 5000000})
-
-                        let ret = await binance.marketSell('ETHUSDT', tradeETH)
-                        if(ret.status != 'FILLED'){
-                            return;
-                        }
+                        // await uniRoute2.methods
+                        //     .swapExactTokensForETH(utils.toWei(tradeETH * uniPrice, 'ether'), 0, [CC.token.usdt.address, CC.token.weth.address], acc.address, timestamp + 300)
+                        //     .send({from: acc.address, gas: 5000000})
+                        //
+                        // let ret = await binance.marketSell('ETHUSDT', tradeETH)
+                        // if(ret.status != 'FILLED'){
+                        //     return;
+                        // }
+                        let msg = msgTPL;
+                        msg.markdown = {
+                            "title": "执行完成。",
+                            "text": `执行完成。`
+                        };
+                        ding(msg);
                     }catch (e) {
                         //todo
                     }
@@ -231,17 +248,29 @@ let job = false;
                     let usdtBalance = await usdt.methods.balanceOf(acc.address).call();
                     let ethBalance = (await binance.balance())['ETH']['available'];
                     if (ethBalance < tradeETH || usdtBalance / uniPrice < tradeETH) {
+                        let msg = msgTPL;
+                        msg.markdown= {
+                            "title":"余额不足，无法执行。",
+                            "text": `余额不足，无法执行`
+                        }
+                        ding(msg);
                         return;
                     }
                     try {
-                        await uniRoute2.methods
-                            .swapExactETHForTokens(0, [CC.token.usdt.address, CC.token.weth.address], acc.address, timestamp + 300)
-                            .send({from: acc.address, value: tradeETH, gas: 5000000})
-
-                        let ret = await binance.marketBuy('ETHUSDT', tradeETH)
-                        if(ret.status != 'FILLED'){
-                            return;
-                        }
+                        // await uniRoute2.methods
+                        //     .swapExactETHForTokens(0, [CC.token.usdt.address, CC.token.weth.address], acc.address, timestamp + 300)
+                        //     .send({from: acc.address, value: tradeETH, gas: 5000000})
+                        //
+                        // let ret = await binance.marketBuy('ETHUSDT', tradeETH)
+                        // if(ret.status != 'FILLED'){
+                        //     return;
+                        // }
+                        let msg = msgTPL;
+                        msg.markdown = {
+                            "title": "执行完成。",
+                            "text": `执行完成。`
+                        };
+                        ding(msg);
                     }catch (e) {
                         //todo
                     }
@@ -249,16 +278,16 @@ let job = false;
                 }
             }
 
-
             job = false;
         }
-
+        console.log("loop");
         await sleep(100)
     }
 })();
 function sleep(ms) {
     return new Promise(resolve => setTimeout(() => resolve(), ms));
 }
+
 
 async function ding(msg){
     // let msg = {
