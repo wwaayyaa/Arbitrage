@@ -225,9 +225,27 @@ let job = false;
                         //todo
                     }
 
-                    //TODO bianTrade(eth, usdt), uniTrade(usdt, eth)
                 } else {
-                    //TODO bianTrade(usdt, eth), uniTrade(eth, usdt)
+                    //e.g.  eth/usdt: 370 < 380  ｜ bianPrice < uniPrice
+                    let usdt = new web3.eth.Contract(CC.token.usdt.abi, CC.token.usdt.address);
+                    let usdtBalance = await usdt.methods.balanceOf(acc.address).call();
+                    let ethBalance = (await binance.balance())['ETH']['available'];
+                    if (ethBalance < tradeETH || usdtBalance / uniPrice < tradeETH) {
+                        return;
+                    }
+                    try {
+                        await uniRoute2.methods
+                            .swapExactETHForTokens(0, [CC.token.usdt.address, CC.token.weth.address], acc.address, timestamp + 300)
+                            .send({from: acc.address, value: tradeETH, gas: 5000000})
+
+                        let ret = await binance.marketBuy('ETHUSDT', tradeETH)
+                        if(ret.status != 'FILLED'){
+                            return;
+                        }
+                    }catch (e) {
+                        //todo
+                    }
+
                 }
             }
 
