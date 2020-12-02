@@ -21,11 +21,11 @@ const binance = new Binance().options({
     APIKEY: process.env.BINANCE_API_KEY,
     APISECRET: process.env.BINANCE_API_SECRET
 });
-
+const acc = web3.eth.accounts.privateKeyToAccount(process.env.ETH_PRIVATE_KEY)
 let msgTPL = {
     "msgtype": "markdown",
     "markdown": {
-        "title":"",
+        "title": "",
         "text": "",
     },
 };
@@ -185,25 +185,28 @@ let pushData = function (exchangeName, quoteName, price) {
     priceData[key] = price;
 };
 
-let job = false;
+let job = true;
 
 //串行执行任务
 (async () => {
-    while(true){
+    while (true) {
         if (job) {
+            job = false;
+
             console.log('do job');
             let uniKey = `uniswap-eth/usdt`;
             let bianKey = `bian-eth/usdt`;
             let uniPrice = priceData[uniKey];
             let bianPrice = priceData[bianKey];
+            uniPrice = 30;
+            bianPrice = 10;
 
             //先发个通知
-            let msg = msgTPL.markdown;
+            let msg = msgTPL;
             msg.markdown = {
-                "title":"ding~ 发现搬砖机会，准备干他。",
-                "text": `币安：${bianPrice}， uniswap：${uniPrice}`
+                "title": "[DeFi] 发现搬砖机会，准备干他。",
+                "text": `[DeFi] 币安：${bianPrice}， uniswap：${uniPrice}`
             };
-
             //兑币价差，如果达到1%，就进行买卖。
             if (Math.abs(bianPrice / uniPrice - 1) >= 0.01) {
                 ding(msg);
@@ -211,18 +214,27 @@ let job = false;
                 if (bianPrice > uniPrice) {
                     //e.g.  eth/usdt: 380 > 370
                     //交易前还要判断余额是否足够，够的情况下才能交易。
-                    let usdt = new web3.eth.Contract(CC.token.usdt.abi, CC.token.usdt.address);
+                    let usdt = new web3.eth.Contract(cc.token.usdt.abi, cc.token.usdt.address);
                     let usdtBalance = await usdt.methods.balanceOf(acc.address).call();
+                    console.log(usdtBalance);
                     let ethBalance = (await binance.balance())['ETH']['available'];
+                    console.log(ethBalance);
                     if (ethBalance < tradeETH || usdtBalance / uniPrice < tradeETH) {
                         let msg = msgTPL;
                         msg.markdown = {
-                            "title":"余额不足，无法执行。",
+                            "title": "[DeFi] 余额不足，无法执行。",
                             "text": `余额不足，无法执行`
                         };
                         ding(msg);
-                        return;
+                        await sleep(1000);
+                        continue;
                     }
+                    let msg = msgTPL;
+                    msg.markdown = {
+                        "title": "[DeFi] 币安卖出eth，uniswap买入eth。",
+                        "text": "[DeFi] 币安卖出eth，uniswap买入eth。"
+                    };
+                    ding(msg);
                     try {
                         // await uniRoute2.methods
                         //     .swapExactTokensForETH(utils.toWei(tradeETH * uniPrice, 'ether'), 0, [CC.token.usdt.address, CC.token.weth.address], acc.address, timestamp + 300)
@@ -234,28 +246,36 @@ let job = false;
                         // }
                         let msg = msgTPL;
                         msg.markdown = {
-                            "title": "执行完成。",
+                            "title": "[DeFi] 执行完成。",
                             "text": `执行完成。`
                         };
                         ding(msg);
-                    }catch (e) {
+                    } catch (e) {
                         //todo
                     }
 
                 } else {
                     //e.g.  eth/usdt: 370 < 380  ｜ bianPrice < uniPrice
-                    let usdt = new web3.eth.Contract(CC.token.usdt.abi, CC.token.usdt.address);
-                    let usdtBalance = await usdt.methods.balanceOf(acc.address).call();
-                    let ethBalance = (await binance.balance())['ETH']['available'];
+                    let ethBalance = await web3.eth.getBalance(acc.address)
+                    console.log(ethBalance);
+                    let usdtBalance = (await binance.balance())['USDT']['available'];
+                    console.log(usdtBalance);
                     if (ethBalance < tradeETH || usdtBalance / uniPrice < tradeETH) {
                         let msg = msgTPL;
-                        msg.markdown= {
-                            "title":"余额不足，无法执行。",
+                        msg.markdown = {
+                            "title": "[DeFi] 余额不足，无法执行。",
                             "text": `余额不足，无法执行`
                         }
                         ding(msg);
-                        return;
+                        await sleep(1000);
+                        continue;
                     }
+                    let msg = msgTPL;
+                    msg.markdown = {
+                        "title": "[DeFi] 币安买入eth，uniswap卖出eth。",
+                        "text": "[DeFi] 币安买入eth，uniswap卖出eth。",
+                    };
+                    ding(msg);
                     try {
                         // await uniRoute2.methods
                         //     .swapExactETHForTokens(0, [CC.token.usdt.address, CC.token.weth.address], acc.address, timestamp + 300)
@@ -267,29 +287,28 @@ let job = false;
                         // }
                         let msg = msgTPL;
                         msg.markdown = {
-                            "title": "执行完成。",
+                            "title": "[DeFi] 执行完成。",
                             "text": `执行完成。`
                         };
                         ding(msg);
-                    }catch (e) {
+                    } catch (e) {
                         //todo
                     }
 
                 }
             }
 
-            job = false;
         }
-        console.log("loop");
         await sleep(100)
     }
 })();
+
 function sleep(ms) {
     return new Promise(resolve => setTimeout(() => resolve(), ms));
 }
 
 
-async function ding(msg){
+async function ding(msg) {
     // let msg = {
     //     "msgtype": "markdown",
     //     "markdown": {
