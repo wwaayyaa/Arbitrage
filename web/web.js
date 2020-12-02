@@ -14,7 +14,12 @@ let cc = require('../ChainConfig');
 const axios = require('axios')
 
 const Web3 = require('web3');
-let web3 = new Web3('http://0.0.0.0:9545');
+// let web3 = new Web3('http://0.0.0.0:9545');
+const web3 = new Web3(
+    new Web3.providers.HttpProvider(
+        "https://mainnet.infura.io/v3/9cc52b7d92aa4107addd8dcf83a8b008"
+    )
+);
 
 const Binance = require('node-binance-api');
 const binance = new Binance().options({
@@ -31,8 +36,6 @@ let msgTPL = {
 };
 
 (async function () {
-    ding()
-    return;
     try {
         /* {
           symbol: 'ETHUSDT',
@@ -198,8 +201,8 @@ let job = true;
             let bianKey = `bian-eth/usdt`;
             let uniPrice = priceData[uniKey];
             let bianPrice = priceData[bianKey];
-            uniPrice = 30;
-            bianPrice = 10;
+            // uniPrice = 30;
+            // bianPrice = 10;
 
             //先发个通知
             let msg = msgTPL;
