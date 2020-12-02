@@ -14,12 +14,8 @@ let cc = require('../ChainConfig');
 const axios = require('axios')
 
 const Web3 = require('web3');
-// let web3 = new Web3('http://0.0.0.0:9545');
-const web3 = new Web3(
-    new Web3.providers.HttpProvider(
-        "https://mainnet.infura.io/v3/9cc52b7d92aa4107addd8dcf83a8b008"
-    )
-);
+const web3 = new Web3('http://0.0.0.0:9545');
+// const web3 = new Web3(new Web3.providers.HttpProvider("https://mainnet.infura.io/v3/9cc52b7d92aa4107addd8dcf83a8b008"));
 
 const Binance = require('node-binance-api');
 const binance = new Binance().options({
@@ -36,7 +32,37 @@ let msgTPL = {
 };
 
 (async function () {
+    async function uniTrade() {
+        //test ETH -> TOKEN
+        let timestamp = await (await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp
+        let ethBalance = await web3.eth.getBalance(acc.address)
+        console.log(ethBalance);
+
+        await uniRoute2.methods
+            .swapExactETHForTokens(0, [cc.token.weth.address, cc.token.usdt.address], acc.address, timestamp + 300)
+            .send({from: acc.address, value: web3.utils.toWei(tradeETH), gas: 5000000})
+
+        ethBalance = await web3.eth.getBalance(acc.address)
+        console.log(ethBalance);
+        let usdt = new web3.eth.Contract(cc.token.usdt.abi, cc.token.usdt.address)
+        let usdtBalance =await usdt.methods.balanceOf(acc.address).call();
+        console.log(usdtBalance)
+        console.log(1);
+        await usdt.methods.approve(cc.exchange.uniswap.router02.address, usdtBalance).send({from: acc.address, gas: 5000000})
+        console.log(2);
+        await uniRoute2.methods
+            .swapExactTokensForETH(usdtBalance, 0, [cc.token.usdt.address, cc.token.weth.address], acc.address, timestamp + 300)
+            .send({from: acc.address, gas: 5000000})
+        console.log(3);
+        ethBalance = await web3.eth.getBalance(acc.address)
+        console.log(ethBalance);
+        usdt = new web3.eth.Contract(cc.token.usdt.abi, cc.token.usdt.address)
+        console.log(await usdt.methods.balanceOf(acc.address).call())
+
+    }
     try {
+        await uniTrade()
+
         /* {
           symbol: 'ETHUSDT',
           orderId: 2064332688,
@@ -80,7 +106,7 @@ const sql = new Sequelize(process.env.DB_DATABASE, process.env.DB_USER, process.
 let priceData = {};
 
 let uniRoute2 = new web3.eth.Contract(cc.exchange.uniswap.router02.abi, cc.exchange.uniswap.router02.address)
-let tradeETH = 0.1;
+let tradeETH = "0.1";
 
 render(app, {
     root: path.join(__dirname, 'views'),
@@ -188,7 +214,7 @@ let pushData = function (exchangeName, quoteName, price) {
     priceData[key] = price;
 };
 
-let job = true;
+let job = false;
 
 //串行执行任务
 (async () => {
@@ -239,8 +265,10 @@ let job = true;
                     };
                     ding(msg);
                     try {
+                        //TODO 交易单位是 bigint
+                        // await usdt.methods.approve(cc.exchange.uniswap.router02.address, tradeETH * uniPrice).send({from: acc.address, gas: 5000000})
                         // await uniRoute2.methods
-                        //     .swapExactTokensForETH(utils.toWei(tradeETH * uniPrice, 'ether'), 0, [CC.token.usdt.address, CC.token.weth.address], acc.address, timestamp + 300)
+                        //     .swapExactTokensForETH(utils.toWei(tradeETH * uniPrice, 'ether'), 0, [cc.token.usdt.address, cc.token.weth.address], acc.address, timestamp + 300)
                         //     .send({from: acc.address, gas: 5000000})
                         //
                         // let ret = await binance.marketSell('ETHUSDT', tradeETH)
@@ -281,7 +309,7 @@ let job = true;
                     ding(msg);
                     try {
                         // await uniRoute2.methods
-                        //     .swapExactETHForTokens(0, [CC.token.usdt.address, CC.token.weth.address], acc.address, timestamp + 300)
+                        //     .swapExactETHForTokens(0, [cc.token.weth.address, cc.token.usdt.address], acc.address, timestamp + 300)
                         //     .send({from: acc.address, value: tradeETH, gas: 5000000})
                         //
                         // let ret = await binance.marketBuy('ETHUSDT', tradeETH)
