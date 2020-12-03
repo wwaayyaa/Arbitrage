@@ -118,9 +118,10 @@ let msgTPL = {
           ]
         }
         */
-        // let ret = await binance.marketBuy('ETHUSDT', 0.1)
-        // let ret = await binance.marketSell('ETHUSDT', 0.1998)
-        // console.log('ret', ret);
+        //成功返回以上数据，失败则是抛出整个http等response，可以查看e.body得到错误信息。
+        // let ret = await binance.marketBuy('ETHUSDT', 90000)
+        // let ret = await binance.marketSell('ETHUSDT', 0.0999)
+        console.log('ret', ret);
     } catch (e) {
         console.log('ee', e)
     }
