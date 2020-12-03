@@ -13,6 +13,7 @@ const dayjs = require('dayjs');
 let cc = require('../ChainConfig');
 const axios = require('axios')
 
+const BN = require('bignumber.js');
 const Web3 = require('web3');
 const web3 = new Web3('http://0.0.0.0:9545');
 // const web3 = new Web3(new Web3.providers.HttpProvider("https://mainnet.infura.io/v3/9cc52b7d92aa4107addd8dcf83a8b008"));
@@ -46,7 +47,7 @@ let msgTPL = {
         console.log(ethBalance);
         let usdt = new web3.eth.Contract(cc.token.usdt.abi, cc.token.usdt.address)
         let usdtBalance =await usdt.methods.balanceOf(acc.address).call();
-        console.log(usdtBalance)
+        console.log(usdtBalance, (new BN(usdtBalance)).div((new BN(10)).pow(cc.token.usdt.decimals)).toFixed(3))
         console.log(1);
         await usdt.methods.approve(cc.exchange.uniswap.router02.address, usdtBalance).send({from: acc.address, gas: 5000000})
         console.log(2);
@@ -102,11 +103,9 @@ const sql = new Sequelize(process.env.DB_DATABASE, process.env.DB_USER, process.
     dialect: 'mysql'
 });
 
+//WEB
 //内存的table
 let priceData = {};
-
-let uniRoute2 = new web3.eth.Contract(cc.exchange.uniswap.router02.abi, cc.exchange.uniswap.router02.address)
-let tradeETH = "0.1";
 
 render(app, {
     root: path.join(__dirname, 'views'),
@@ -214,6 +213,10 @@ let pushData = function (exchangeName, quoteName, price) {
     priceData[key] = price;
 };
 
+// TRADE
+let uniRoute2 = new web3.eth.Contract(cc.exchange.uniswap.router02.abi, cc.exchange.uniswap.router02.address)
+let usdt = new web3.eth.Contract(cc.token.usdt.abi, cc.token.usdt.address);
+let tradeETH = "0.1";
 let job = false;
 
 //串行执行任务
@@ -233,7 +236,7 @@ let job = false;
             //先发个通知
             let msg = msgTPL;
             msg.markdown = {
-                "title": "[DeFi] 发现搬砖机会，准备干他。",
+                "title": "[DeFi] 发现搬砖机会。",
                 "text": `[DeFi] 币安：${bianPrice}， uniswap：${uniPrice}`
             };
             //兑币价差，如果达到1%，就进行买卖。
@@ -243,8 +246,8 @@ let job = false;
                 if (bianPrice > uniPrice) {
                     //e.g.  eth/usdt: 380 > 370
                     //交易前还要判断余额是否足够，够的情况下才能交易。
-                    let usdt = new web3.eth.Contract(cc.token.usdt.abi, cc.token.usdt.address);
                     let usdtBalance = await usdt.methods.balanceOf(acc.address).call();
+                    usdtBalance = new BN(usdtBalance).div(new BN(10).pow(cc.token.usdt.decimals)).toNumber();
                     console.log(usdtBalance);
                     let ethBalance = (await binance.balance())['ETH']['available'];
                     console.log(ethBalance);
@@ -252,7 +255,7 @@ let job = false;
                         let msg = msgTPL;
                         msg.markdown = {
                             "title": "[DeFi] 余额不足，无法执行。",
-                            "text": `余额不足，无法执行`
+                            "text": `余额不足，无法执行。 ethBalance: ${ethBalance}, usdtBalance: ${usdtBalance}`
                         };
                         ding(msg);
                         await sleep(1000);
@@ -265,16 +268,18 @@ let job = false;
                     };
                     ding(msg);
                     try {
-                        //TODO 交易单位是 bigint
-                        // await usdt.methods.approve(cc.exchange.uniswap.router02.address, tradeETH * uniPrice).send({from: acc.address, gas: 5000000})
-                        // await uniRoute2.methods
-                        //     .swapExactTokensForETH(utils.toWei(tradeETH * uniPrice, 'ether'), 0, [cc.token.usdt.address, cc.token.weth.address], acc.address, timestamp + 300)
-                        //     .send({from: acc.address, gas: 5000000})
-                        //
-                        // let ret = await binance.marketSell('ETHUSDT', tradeETH)
-                        // if(ret.status != 'FILLED'){
-                        //     return;
-                        // }
+                        let tradeUSDT = new BN(tradeETH * uniPrice).times(new BN(10).pow(cc.token.usdt.decimals)).toFixed(0);
+                        await usdt.methods.approve(cc.exchange.uniswap.router02.address, tradeUSDT).send({from: acc.address, gas: 5000000})
+                        await uniRoute2.methods
+                            .swapExactTokensForETH(tradeUSDT, 0, [cc.token.usdt.address, cc.token.weth.address], acc.address, timestamp + 300)
+                            .send({from: acc.address, gas: 5000000})
+
+                        let ret = await binance.marketSell('ETHUSDT', tradeETH);
+                        if(ret.status != 'FILLED'){
+                            console.log('not FILLED');
+                            await sleep(1000);
+                            continue;
+                        }
                         let msg = msgTPL;
                         msg.markdown = {
                             "title": "[DeFi] 执行完成。",
@@ -282,12 +287,18 @@ let job = false;
                         };
                         ding(msg);
                     } catch (e) {
-                        //todo
+                        let msg = msgTPL;
+                        msg.markdown = {
+                            "title": "[DeFi] 执行失败。",
+                            "text": `${e.message()}`
+                        };
+                        ding(msg);
                     }
 
                 } else {
                     //e.g.  eth/usdt: 370 < 380  ｜ bianPrice < uniPrice
-                    let ethBalance = await web3.eth.getBalance(acc.address)
+                    let ethBalance = await web3.eth.getBalance(acc.address);
+                    ethBalance = web3.utils.fromWei(ethBalance, 'ether');
                     console.log(ethBalance);
                     let usdtBalance = (await binance.balance())['USDT']['available'];
                     console.log(usdtBalance);
@@ -295,7 +306,7 @@ let job = false;
                         let msg = msgTPL;
                         msg.markdown = {
                             "title": "[DeFi] 余额不足，无法执行。",
-                            "text": `余额不足，无法执行`
+                            "text": `余额不足，无法执行。 ethBalance: ${ethBalance}, usdtBalance: ${usdtBalance}`
                         }
                         ding(msg);
                         await sleep(1000);
@@ -308,14 +319,15 @@ let job = false;
                     };
                     ding(msg);
                     try {
-                        // await uniRoute2.methods
-                        //     .swapExactETHForTokens(0, [cc.token.weth.address, cc.token.usdt.address], acc.address, timestamp + 300)
-                        //     .send({from: acc.address, value: tradeETH, gas: 5000000})
-                        //
-                        // let ret = await binance.marketBuy('ETHUSDT', tradeETH)
-                        // if(ret.status != 'FILLED'){
-                        //     return;
-                        // }
+                        await uniRoute2.methods
+                            .swapExactETHForTokens(0, [cc.token.weth.address, cc.token.usdt.address], acc.address, timestamp + 300)
+                            .send({from: acc.address, value: web3.utils.toWei(tradeETH, 'ether'), gas: 5000000})
+
+                        let ret = await binance.marketBuy('ETHUSDT', tradeETH)
+                        if(ret.status != 'FILLED'){
+                            return;
+                        }
+
                         let msg = msgTPL;
                         msg.markdown = {
                             "title": "[DeFi] 执行完成。",
@@ -323,7 +335,12 @@ let job = false;
                         };
                         ding(msg);
                     } catch (e) {
-                        //todo
+                        let msg = msgTPL;
+                        msg.markdown = {
+                            "title": "[DeFi] 执行失败。",
+                            "text": `${e.message()}`
+                        };
+                        ding(msg);
                     }
 
                 }
@@ -354,8 +371,8 @@ async function ding(msg) {
     //     }
     // };
     try {
-        let response = await axios.post('https://oapi.dingtalk.com/robot/send?access_token=612342ba40defdd26f3228f35bbd0aeddcf9de619d9d4f9f80c2b47d39e4d0d0', msg)
+        let response = await axios.post('https://oapi.dingtalk.com/robot/send?access_token='+process.env.DING_KEY, msg)
     } catch (e) {
-        console.error(`huobi error: ${exchangeName}, ${quoteName}, ${e}`);
+        console.error(`ding error: ${e.message} ${msg}`);
     }
 }
