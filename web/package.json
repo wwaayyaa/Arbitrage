@@ -12,7 +12,7 @@
     "art-template": "^4.13.2",
     "axios": "^0.21.0",
     "bignumber.js": "^9.0.1",
-    "dayjs": "^1.9.3",
+    "dayjs": "^1.9.6",
     "dotenv": "^8.2.0",
     "koa": "^2.13.0",
     "koa-art-template": "^1.1.1",

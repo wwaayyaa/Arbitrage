@@ -15,8 +15,15 @@ const axios = require('axios')
 
 const BN = require('bignumber.js');
 const Web3 = require('web3');
-const web3 = new Web3('http://0.0.0.0:9545');
-// const web3 = new Web3(new Web3.providers.HttpProvider("https://mainnet.infura.io/v3/9cc52b7d92aa4107addd8dcf83a8b008"));
+let web3;
+if (process.env.APP_ENV == 'production') {
+    web3 = new Web3(new Web3.providers.HttpProvider("https://mainnet.infura.io/v3/9cc52b7d92aa4107addd8dcf83a8b008"));
+} else {
+    web3 = new Web3('http://0.0.0.0:9545');
+}
+
+let uniRoute2 = new web3.eth.Contract(cc.exchange.uniswap.router02.abi, cc.exchange.uniswap.router02.address)
+let usdt = new web3.eth.Contract(cc.token.usdt.abi, cc.token.usdt.address);
 
 const Binance = require('node-binance-api');
 const binance = new Binance().options({
@@ -33,9 +40,14 @@ let msgTPL = {
 };
 
 (async function () {
+    if (process.env.APP_ENV != "develop") {
+        return;
+    }
+
     async function uniTrade() {
         //test ETH -> TOKEN
-        let timestamp = await (await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp
+        let timestamp = await (await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp;
+        console.log('timestamp', timestamp);
         let ethBalance = await web3.eth.getBalance(acc.address)
         console.log(ethBalance);
 
@@ -46,10 +58,13 @@ let msgTPL = {
         ethBalance = await web3.eth.getBalance(acc.address)
         console.log(ethBalance);
         let usdt = new web3.eth.Contract(cc.token.usdt.abi, cc.token.usdt.address)
-        let usdtBalance =await usdt.methods.balanceOf(acc.address).call();
+        let usdtBalance = await usdt.methods.balanceOf(acc.address).call();
         console.log(usdtBalance, (new BN(usdtBalance)).div((new BN(10)).pow(cc.token.usdt.decimals)).toFixed(3))
         console.log(1);
-        await usdt.methods.approve(cc.exchange.uniswap.router02.address, usdtBalance).send({from: acc.address, gas: 5000000})
+        await usdt.methods.approve(cc.exchange.uniswap.router02.address, usdtBalance).send({
+            from: acc.address,
+            gas: 5000000
+        });
         console.log(2);
         await uniRoute2.methods
             .swapExactTokensForETH(usdtBalance, 0, [cc.token.usdt.address, cc.token.weth.address], acc.address, timestamp + 300)
@@ -61,8 +76,22 @@ let msgTPL = {
         console.log(await usdt.methods.balanceOf(acc.address).call())
 
     }
+
+    async function testApprove() {
+        let allowance = await usdt.methods.allowance(acc.address, cc.exchange.uniswap.router02.address).call();
+        console.log(`allowance ${allowance}`);
+        await usdt.methods.approve(cc.exchange.uniswap.router02.address, web3.utils.toWei("10000", "mwei")).send({
+            from: acc.address,
+            gas: 5000000
+        })
+        allowance = await usdt.methods.allowance(acc.address, cc.exchange.uniswap.router02.address).call();
+        console.log(`allowance ${allowance}`);
+
+    }
+
     try {
-        await uniTrade()
+        // await uniTrade()
+        // await testApprove();
 
         /* {
           symbol: 'ETHUSDT',
@@ -95,8 +124,8 @@ let msgTPL = {
     } catch (e) {
         console.log('ee', e)
     }
+})();
 
-})()
 const {Sequelize} = require('sequelize');
 const sql = new Sequelize(process.env.DB_DATABASE, process.env.DB_USER, process.env.DB_PASS, {
     host: process.env.DB_HOST,
@@ -214,15 +243,27 @@ let pushData = function (exchangeName, quoteName, price) {
 };
 
 // TRADE
-let uniRoute2 = new web3.eth.Contract(cc.exchange.uniswap.router02.abi, cc.exchange.uniswap.router02.address)
-let usdt = new web3.eth.Contract(cc.token.usdt.abi, cc.token.usdt.address);
-let tradeETH = "0.1";
+
+let tradeETH = "2";
 let job = false;
 
 //串行执行任务
 (async () => {
+    //init approve
+    let allowance = await usdt.methods.allowance(acc.address, cc.exchange.uniswap.router02.address).call();
+    console.log(`allowance ${allowance}`);
+    if (allowance == 0) {
+        //只允许一次，等不足的时候先设置0，再设置新的值。
+        await usdt.methods.approve(cc.exchange.uniswap.router02.address, web3.utils.toWei("10000000", "mwei")).send({
+            from: acc.address,
+            gas: 5000000
+        })
+    }
+
     while (true) {
         if (job) {
+            let now = new dayjs();
+            let timestamp = now.unix()
             job = false;
 
             console.log('do job');
@@ -269,16 +310,16 @@ let job = false;
                     ding(msg);
                     try {
                         let tradeUSDT = new BN(tradeETH * uniPrice).times(new BN(10).pow(cc.token.usdt.decimals)).toFixed(0);
-                        await usdt.methods.approve(cc.exchange.uniswap.router02.address, tradeUSDT).send({from: acc.address, gas: 5000000})
+                        // await usdt.methods.approve(cc.exchange.uniswap.router02.address, tradeUSDT).send({from: acc.address, gas: 5000000});
+
                         await uniRoute2.methods
                             .swapExactTokensForETH(tradeUSDT, 0, [cc.token.usdt.address, cc.token.weth.address], acc.address, timestamp + 300)
                             .send({from: acc.address, gas: 5000000})
 
                         let ret = await binance.marketSell('ETHUSDT', tradeETH);
-                        if(ret.status != 'FILLED'){
+                        if (ret.status != 'FILLED') {
                             console.log('not FILLED');
-                            await sleep(1000);
-                            continue;
+                            return;
                         }
                         let msg = msgTPL;
                         msg.markdown = {
@@ -293,6 +334,7 @@ let job = false;
                             "text": `${e.message()}`
                         };
                         ding(msg);
+                        return;
                     }
 
                 } else {
@@ -324,7 +366,8 @@ let job = false;
                             .send({from: acc.address, value: web3.utils.toWei(tradeETH, 'ether'), gas: 5000000})
 
                         let ret = await binance.marketBuy('ETHUSDT', tradeETH)
-                        if(ret.status != 'FILLED'){
+                        if (ret.status != 'FILLED') {
+                            console.log('not FILLED');
                             return;
                         }
 
@@ -341,6 +384,7 @@ let job = false;
                             "text": `${e.message()}`
                         };
                         ding(msg);
+                        return;
                     }
 
                 }
@@ -371,7 +415,7 @@ async function ding(msg) {
     //     }
     // };
     try {
-        let response = await axios.post('https://oapi.dingtalk.com/robot/send?access_token='+process.env.DING_KEY, msg)
+        let response = await axios.post('https://oapi.dingtalk.com/robot/send?access_token=' + process.env.DING_KEY, msg)
     } catch (e) {
         console.error(`ding error: ${e.message} ${msg}`);
     }
