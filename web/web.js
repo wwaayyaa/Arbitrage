@@ -334,6 +334,7 @@ let job = false;
                         ding(msg);
                     } catch (e) {
                         let msg = msgTPL;
+                        console.log('error: ', e);
                         msg.markdown = {
                             "title": "[DeFi] 执行失败。",
                             "text": `${e}`
@@ -384,6 +385,7 @@ let job = false;
                         ding(msg);
                     } catch (e) {
                         let msg = msgTPL;
+                        console.log('error: ', e);
                         msg.markdown = {
                             "title": "[DeFi] 执行失败。",
                             "text": `${e}`
