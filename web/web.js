@@ -30,7 +30,11 @@ const binance = new Binance().options({
     APIKEY: process.env.BINANCE_API_KEY,
     APISECRET: process.env.BINANCE_API_SECRET
 });
+
 const acc = web3.eth.accounts.privateKeyToAccount(process.env.ETH_PRIVATE_KEY)
+// infura需要特殊处理
+web3.eth.accounts.wallet.add(acc);
+
 let msgTPL = {
     "msgtype": "markdown",
     "markdown": {
@@ -332,7 +336,7 @@ let job = false;
                         let msg = msgTPL;
                         msg.markdown = {
                             "title": "[DeFi] 执行失败。",
-                            "text": `${e.message()}`
+                            "text": `${e}`
                         };
                         ding(msg);
                         return;
@@ -382,7 +386,7 @@ let job = false;
                         let msg = msgTPL;
                         msg.markdown = {
                             "title": "[DeFi] 执行失败。",
-                            "text": `${e.message()}`
+                            "text": `${e}`
                         };
                         ding(msg);
                         return;
