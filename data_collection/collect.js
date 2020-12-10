@@ -22,7 +22,7 @@ const sql = new Sequelize(process.env.DB_DATABASE, process.env.DB_USER, process.
 const dingKey = process.env.DING_KEY;
 const acc = web3.eth.accounts.privateKeyToAccount('0x9679727a20329d53f114382ea91b6f9e1e3e0b622f79a44bd53a5b2fb794171d');
 
-async function loadTokens(sql){
+async function loadTokens(sql) {
     let tokens = await sql.query("SELECT * FROM `token` ;", {type: 'SELECT'});
     let ret = {};
     tokens.forEach(i => {
@@ -31,13 +31,13 @@ async function loadTokens(sql){
     return ret;
 }
 
-async function defiCrawler(quote){
+async function defiCrawler(quote) {
     let blockHeight = 0;
     let blockHash = "";
 
-    while(true){
+    while (true) {
         let block = await web3.eth.getBlock("latest");
-        if(block.number == blockHeight && block.hash == blockHash){
+        if (block.number == blockHeight && block.hash == blockHash) {
             await common.sleep(1000);
             continue;
         }
@@ -49,7 +49,7 @@ async function defiCrawler(quote){
     }
 }
 
-async function cefiCrawler(quote){
+async function cefiCrawler(quote) {
     for (let i = 0; i < quote.length; i++) {
         let q = quote[i];
         let [n0, n1] = q.name.split('/');
@@ -57,15 +57,10 @@ async function cefiCrawler(quote){
 
         // createTable(sql, tableName);
 
-        if (q.protocol == 'uniswap') {
-
-        } else if (q.type == 'cefi') {
-            collectCeFi(q.exchange, q.name, tableName, socket);
-        }else if (q.type == 'balancer'){
-
-        }else{
-            console.log()
-        }
+        collectCeFi(q.exchange, q.name, async function (e, price) {
+            // socket
+            c('callback', e, price);
+        });
         await common.sleep(100);
     }
 }
@@ -77,9 +72,9 @@ async function main() {
     let socket = ioc('http://localhost:8084', {
         path: '/s'
     });
-    let block = await web3.eth.getBlock("latest");
-    c(block.number, block.hash);
-return;
+    // let block = await web3.eth.getBlock("latest");
+    // c(block.number, block.hash);
+    // return;
     // collect('0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852', {name:"eth/usdt"}, tokens);
     // return;
 
@@ -96,7 +91,7 @@ async function collect(contractAddress, q, tokens, socket, tableName, quoteName,
     //需要知道合约地址、abi
     // let exchangeName = q.exchange;
     let [token0, token1] = q.name.split('/');
-    if(!tokens.hasOwnProperty(token0) || !tokens.hasOwnProperty(token1)){
+    if (!tokens.hasOwnProperty(token0) || !tokens.hasOwnProperty(token1)) {
         console.error(`${token0}-${token1} missing config information `)
         return;
     }
@@ -113,7 +108,11 @@ async function collect(contractAddress, q, tokens, socket, tableName, quoteName,
     let price10 = amount1.div(amount0).toFixed(8);
     console.log(price01, price10);
     return;
-    socket.emit('collected', {exchangeName, quoteName, price: (reverse ? (1 / info['price']).toFixed(8) : info['price'])});
+    socket.emit('collected', {
+        exchangeName,
+        quoteName,
+        price: (reverse ? (1 / info['price']).toFixed(8) : info['price'])
+    });
 
     let now = new dayjs();
     sql.query("insert into " + tableName + " (minute, price) values (?, ?) on duplicate key update price = values(price);",
@@ -124,6 +123,7 @@ async function collect(contractAddress, q, tokens, socket, tableName, quoteName,
 
     await common.sleep(30000);
 }
+
 async function collectOld(exchangeName, pairName, socket, tableName, quoteName, reverse) {
     let ex = new Exchange(exchangeName, cc.exchange[exchangeName].router02.address, cc.exchange[exchangeName].router02.abi, web3, acc);
     ex.setPair(new Pair(pairName, cc.exchange[exchangeName].pair[pairName].address, cc.exchange[exchangeName].pair[pairName].abi));
@@ -150,7 +150,11 @@ async function collectOld(exchangeName, pairName, socket, tableName, quoteName, 
         // console.log(exchangeName, pairName, info);
 
         //socketio
-        socket.emit('collected', {exchangeName, quoteName, price: (reverse ? (1 / info['price']).toFixed(8) : info['price'])});
+        socket.emit('collected', {
+            exchangeName,
+            quoteName,
+            price: (reverse ? (1 / info['price']).toFixed(8) : info['price'])
+        });
 
         let now = new dayjs();
         sql.query("insert into " + tableName + " (minute, price) values (?, ?) on duplicate key update price = values(price);",
@@ -163,14 +167,16 @@ async function collectOld(exchangeName, pairName, socket, tableName, quoteName, 
     }
 }
 
-async function collectCeFi(exchangeName, quoteName, tableName, socket) {
+async function collectCeFi(exchangeName, quoteName, callback) {
     let price = -1;
+    let err = null;
     while (true) {
         if (exchangeName == 'huobi') {
             try {
                 let response = await axios.get('https://api.huobipro.com/market/trade?symbol=' + quoteName.replace('\/', ''))
                 price = response.data.tick.data[0].price;
             } catch (e) {
+                err = e;
                 console.error(`huobi error: ${exchangeName}, ${quoteName}, ${e}`);
             }
         } else if (exchangeName == 'bian') {
@@ -179,6 +185,7 @@ async function collectCeFi(exchangeName, quoteName, tableName, socket) {
                 let response = await axios.get(`https://api.binance.com/api/v3/trades?symbol=${symbol}&limit=1`);
                 price = response.data[0].price;
             } catch (e) {
+                err = e;
                 console.error(`bian error: ${exchangeName}, ${quoteName}, ${e}`);
             }
         } else if (exchangeName == 'ok') {
@@ -187,26 +194,33 @@ async function collectCeFi(exchangeName, quoteName, tableName, socket) {
                 let response = await axios.get(`https://www.okex.com/api/spot/v3/instruments/${symbol}/ticker`);
                 price = response.data.last;
             } catch (e) {
+                err = e;
                 console.error(`ok error: ${exchangeName}, ${quoteName}, ${e}`);
             }
         }
 
         price = price - 0;
-        if(price == -1){
+        if (price == -1) {
+            if (callback) {
+                await callback(err, null);
+            }
             await common.sleep(15000);
             continue;
         }
-        socket.emit('collected', {exchangeName, quoteName, price});
-        let now = new dayjs();
-        try {
-            sql.query("insert into " + tableName + " (minute, price) values (?, ?) on duplicate key update price = values(price);",
-                {
-                    replacements: [now.format("YYYYMMDDHHmm"), price],
-                    type: 'INSERT'
-                });
-        } catch (e) {
-            console.error(`insert error: ${exchangeName}, ${quoteName}, ${e}`)
+        if (callback) {
+            await callback(null, price);
         }
+        // socket.emit('collected', {exchangeName, quoteName, price});
+        // let now = new dayjs();
+        // try {
+        //     sql.query("insert into " + tableName + " (minute, price) values (?, ?) on duplicate key update price = values(price);",
+        //         {
+        //             replacements: [now.format("YYYYMMDDHHmm"), price],
+        //             type: 'INSERT'
+        //         });
+        // } catch (e) {
+        //     console.error(`insert error: ${exchangeName}, ${quoteName}, ${e}`)
+        // }
 
         await common.sleep(15000);
     }
