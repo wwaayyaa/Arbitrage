@@ -167,49 +167,58 @@ async function collectOld(exchangeName, pairName, socket, tableName, quoteName, 
     }
 }
 
-async function collectCeFi(exchangeName, quoteName, callback) {
+async function getCefiPrice(exchangeName, quoteName) {
     let price = -1;
-    let err = null;
-    while (true) {
-        if (exchangeName == 'huobi') {
-            try {
-                let response = await axios.get('https://api.huobipro.com/market/trade?symbol=' + quoteName.replace('\/', ''))
-                price = response.data.tick.data[0].price;
-            } catch (e) {
-                err = e;
-                console.error(`huobi error: ${exchangeName}, ${quoteName}, ${e}`);
-            }
-        } else if (exchangeName == 'bian') {
-            try {
-                let symbol = quoteName.replace('\/', '').toUpperCase();
-                let response = await axios.get(`https://api.binance.com/api/v3/trades?symbol=${symbol}&limit=1`);
-                price = response.data[0].price;
-            } catch (e) {
-                err = e;
-                console.error(`bian error: ${exchangeName}, ${quoteName}, ${e}`);
-            }
-        } else if (exchangeName == 'ok') {
-            try {
-                let symbol = quoteName.replace('\/', '-').toUpperCase();
-                let response = await axios.get(`https://www.okex.com/api/spot/v3/instruments/${symbol}/ticker`);
-                price = response.data.last;
-            } catch (e) {
-                err = e;
-                console.error(`ok error: ${exchangeName}, ${quoteName}, ${e}`);
-            }
+    if (exchangeName == 'huobi') {
+        try {
+            let response = await axios.get('https://api.huobipro.com/market/trade?symbol=' + quoteName.replace('\/', ''))
+            price = response.data.tick.data[0].price;
+            return [price, null];
+        } catch (e) {
+            e.message = `get ${exchangeName} ${quoteName}'s price error: ${e.message} `;
+            return [price, e];
         }
+    } else if (exchangeName == 'bian') {
+        try {
+            let symbol = quoteName.replace('\/', '').toUpperCase();
+            let response = await axios.get(`https://api.binance.com/api/v3/trades?symbol=${symbol}&limit=1`);
+            price = response.data[0].price;
+            return [price, null];
+        } catch (e) {
+            e.message = `get ${exchangeName} ${quoteName}'s price error: ${e.message} `;
+            return [price, e];
+        }
+    } else if (exchangeName == 'ok') {
+        try {
+            let symbol = quoteName.replace('\/', '-').toUpperCase();
+            let response = await axios.get(`https://www.okex.com/api/spot/v3/instruments/${symbol}/ticker`);
+            price = response.data.last;
+            return [price, null];
+        } catch (e) {
+            e.message = `get ${exchangeName} ${quoteName}'s price error: ${e.message} `;
+            return [price, e];
+        }
+    }
+}
 
-        price = price - 0;
-        if (price == -1) {
+//异步并发执行，多个交易所、多个币种独立抓取。同步返回会影响后去请求。 callback用于在获取到数据后到行为
+async function collectCeFi(exchangeName, quoteName, callback) {
+    while (true) {
+        let [price, error] = await getCefiPrice(exchangeName, quoteName);
+        if (error) {
             if (callback) {
-                await callback(err, null);
+                await callback(error);
             }
             await common.sleep(15000);
             continue;
         }
+
+        price = price - 0;
         if (callback) {
             await callback(null, price);
         }
+
+
         // socket.emit('collected', {exchangeName, quoteName, price});
         // let now = new dayjs();
         // try {
