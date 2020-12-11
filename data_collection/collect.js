@@ -22,6 +22,7 @@ const sql = new Sequelize(process.env.DB_DATABASE, process.env.DB_USER, process.
 });
 const dingKey = process.env.DING_KEY;
 const acc = web3.eth.accounts.privateKeyToAccount('0x9679727a20329d53f114382ea91b6f9e1e3e0b622f79a44bd53a5b2fb794171d');
+let gTokens = [];
 
 async function loadTokens(sql) {
     let tokens = await sql.query("SELECT * FROM `token` ;", {type: 'SELECT'});
@@ -43,11 +44,32 @@ async function defiCrawler(quote, socket) {
             continue;
         }
         let now = new dayjs();
+        blockHeight = block.number;
+        blockHash = block.hash;
         console.log(`new block: ${blockHeight} ${blockHash} ${now.unix()}`);
         //块变化，需要更新所有价格
         //just fuck it
         for (let i = 0; i < quote.length; i++) {
-
+            let q = quote[i];
+            let [err, priceList] = await getDeFiPrice(q.protocol, q.exchange, q.name, q.contract_address);
+            if (err) {
+                console.error(`defiCrawler error: ${q.protocol} ${q.exchange} ${q.name} ${err.message || ""}`);
+                continue;
+            }
+            for (let i = 0; i < priceList.length; i++) {
+                let price = priceList[i];
+                let priceInfo = new struct.SocketCollectedPriceInfo(q.protocol, q.exchange, price.quoteA, price.quoteB, price.price);
+                socket.emit('collected_v3', priceInfo);
+                let [err, ok] = await updatePriceNow(q.protocol, q.exchange, price.quoteA + '/' + price.quoteB, price.price, 0);
+                if (err) {
+                    console.error(`collectCeFi updatePriceNow error: ${err.message || ""}`);
+                }
+                let now = new dayjs();
+                [err, ok] = await updatePriceHistory(q.protocol, q.exchange, now.format("YYYYMMDDHHmm"), price.quoteA + '/' + price.quoteB, price.price, 0);
+                if (err) {
+                    console.error(`collectCeFi updatePriceHistory error: ${err.message || ""}`);
+                }
+            }
         }
 
         await common.sleep(1000);
@@ -118,6 +140,7 @@ async function updatePriceHistory(protocol, exchange, minute, quote, price, heig
 
 async function main() {
     let tokens = await loadTokens(sql);
+    gTokens = tokens
 
     //init socket
     let socket = ioc('http://localhost:8084', {
@@ -254,18 +277,24 @@ async function getCefiPrice(exchangeName, quoteA, quoteB) {
     }
 }
 
-async function getDeFiPrice(protocol, exchange, quote) {
+async function getDeFiPrice(protocol, exchange, quote, address) {
+    let err = null;
+    let ret = [];
     if (protocol == 'uniswap') {
-
+        [err, ret] = await getUniswapPrice(address, cc.exchange.uniswap.pair.abi, ...quote.split('/'), gTokens)
     } else if (protocol == 'balancer') {
-
+        [err, ret] = await getBalancerPrice(address, cc.exchange.balancer.abi, quote.split('/'), gTokens);
     } else {
-
+        return [new Error(`unsupported protocol: ${protocol}`)]
     }
+    if (err){
+        return [err];
+    }
+    return [null, ret];
 }
 
 //需要知道quoteA、B，原因是减少合约的调用。否则就需要再调用两次token0、token1方法获取token的地址。节省时间。
-async function getUniswapPrice(address, abi, quoteA, quoteB) {
+async function getUniswapPrice(address, abi, quoteA, quoteB, tokens) {
     // 根据合约的
     let ctt = new web3.eth.Contract(abi, address);
     let reserves = [];
@@ -281,8 +310,8 @@ async function getUniswapPrice(address, abi, quoteA, quoteB) {
 
     let amount0 = new BN(reserve0).div(new BN(10).pow(tokens[quoteA].decimal));
     let amount1 = new BN(reserve1).div(new BN(10).pow(tokens[quoteB].decimal));
-    let price01 = amount0.div(amount1).toFixed(8);
-    let price10 = amount1.div(amount0).toFixed(8);
+    let price01 = amount1.div(amount0).toFixed(8);
+    let price10 = amount0.div(amount1).toFixed(8);
 
     return [null, [
         {"quoteA": quoteA, "quoteB": quoteB, "price": price01},
@@ -305,10 +334,15 @@ async function getBalancerPrice(address,
             //方案二，直接调用 getSpotPrice 获取两两交易对的价格 （采用方案二把，io少一次（虽然合约内也会耗时），暂时也不需要balance数据。）
             let spotPrice = 0;
             try {
+                //getSpotPrice 得到的和我们的系统规范是反的。他们的算法 in USDC/out ETH = 546.554581 。所以放到quoteA、B的时候反过来放。
+                // decimal  usdc|6 - eth|18 = -12, 所以divisor是10^-12。返回的price是eth/usdc的546554581,先缩小18位（BONE），再放大12位。
                 spotPrice = await ctt.methods.getSpotPrice(tokens[quotes[i]].address, tokens[quotes[j]].address).call({from: acc.address});
-                priceList.push({"quoteA": quotes[i], "quoteB": quotes[j], "price": spotPrice});
+                //需要考虑两个token的decimal的差，同时还要考虑BONE（10**18）单位是wei
+                let divisor = new BN(Math.pow(10, tokens[quotes[i]].decimal - tokens[quotes[j]].decimal));
+                let balancerBONE = new BN(10).pow(18);
+                priceList.push({"quoteA": quotes[j], "quoteB": quotes[i], "price": new BN(spotPrice).div(divisor).div(balancerBONE).toFixed(8)});
                 spotPrice = await ctt.methods.getSpotPrice(tokens[quotes[j]].address, tokens[quotes[i]].address).call({from: acc.address});
-                priceList.push({"quoteA": quotes[j], "quoteB": quotes[i], "price": spotPrice});
+                priceList.push({"quoteA": quotes[i], "quoteB": quotes[j], "price": new BN(spotPrice).times(divisor).div(balancerBONE).toFixed(8)});
             } catch (e) {
                 return [e];
             }
