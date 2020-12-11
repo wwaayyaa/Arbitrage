@@ -1,5 +1,6 @@
 require('dotenv').config();
 let common = require('../common/common');
+let struct = require('../common/struct');
 let fs = require('fs');
 let BN = require('bignumber.js');
 let dayjs = require('dayjs');
@@ -49,20 +50,65 @@ async function defiCrawler(quote) {
     }
 }
 
-async function cefiCrawler(quote) {
+async function cefiCrawler(quote, socket) {
     for (let i = 0; i < quote.length; i++) {
         let q = quote[i];
-        let [n0, n1] = q.name.split('/');
-        let tableName = 'single_price_minute_' + q.exchange + '_' + n0 + '_' + n1;
-
-        // createTable(sql, tableName);
-
-        collectCeFi(q.exchange, q.name, async function (e, price) {
+        collectCeFi(q.exchange, q.name, async function (e, priceList) {
             // socket
-            c('callback', e, price);
+            if (e){
+                console.error(`collectCeFi callback error: ${e.message ||""}`);
+                return;
+            }
+            for (let i = 0; i < priceList.length; i++) {
+                let price = priceList[i];
+                let priceInfo = new struct.SocketCollectedPriceInfo(q.protocol, q.exchange, price.quoteA, price.quoteB, price.price);
+                socket.emit('collected_v3', priceInfo);
+                let [err, ok] = await updatePriceNow(q.protocol, q.exchange, price.quoteA+'/'+price.quoteB, price.price, 0);
+                if (err){
+                    console.error(`collectCeFi updatePriceNow error: ${err.message || ""}`);
+                }
+                let now = new dayjs();
+                [err, ok] = await updatePriceHistory(q.protocol, q.exchange, now.format("YYYYMMDDHHmm"), price.quoteA+'/'+price.quoteB, price.price, 0);
+                if (err){
+                    console.error(`collectCeFi updatePriceHistory error: ${err.message || ""}`);
+                }
+            }
         });
         await common.sleep(100);
     }
+}
+
+async function updatePriceNow(protocol, exchange, quote, price, height) {
+    let now = new dayjs();
+    try {
+        await sql.query("insert into price_now (protocol, exchange, quote, price, updated_height, updated_at) " +
+            "values (?, ?, ?, ?, ?, ?) " +
+            "on duplicate key update " +
+            "price = values(price),updated_height = values(updated_height),updated_at = values(updated_at) ",
+            {
+                replacements: [protocol, exchange, quote, price, height || 0, now.format("YYYY-MM-DD HH:mm:ss")],
+                type: 'INSERT'
+            })
+    } catch (e) {
+        return [e, false];
+    }
+    return [null, true];
+}
+async function updatePriceHistory(protocol, exchange, minute, quote, price, height) {
+    let now = new dayjs();
+    try {
+        await sql.query("insert into price_history (protocol, exchange, minute, quote, price, updated_height, updated_at) " +
+            "values (?, ?, ?, ?, ?, ?, ?) " +
+            "on duplicate key update " +
+            "price = values(price),updated_height = values(updated_height),updated_at = values(updated_at) ",
+            {
+                replacements: [protocol, exchange, minute, quote, price, height || 0, now.format("YYYY-MM-DD HH:mm:ss")],
+                type: 'INSERT'
+            })
+    } catch (e) {
+        return [e, false];
+    }
+    return [null, true];
 }
 
 async function main() {
@@ -82,8 +128,8 @@ async function main() {
     let cefiQuote = quote.filter(v => v.protocol == 'cefi');
     let defiQuote = quote.filter(v => v.protocol != 'cefi');
     //cefi 轮询或socket，defi监控出块
-    cefiCrawler(cefiQuote);
-    defiCrawler(defiQuote);
+    cefiCrawler(cefiQuote, socket);
+    defiCrawler(defiQuote, socket);
 
 }
 
@@ -167,36 +213,38 @@ async function collectOld(exchangeName, pairName, socket, tableName, quoteName, 
     }
 }
 
-async function getCefiPrice(exchangeName, quoteName) {
+async function getCefiPrice(exchangeName, quoteA, quoteB) {
     let price = -1;
     if (exchangeName == 'huobi') {
         try {
-            let response = await axios.get('https://api.huobipro.com/market/trade?symbol=' + quoteName.replace('\/', ''))
+            let response = await axios.get('https://api.huobipro.com/market/trade?symbol=' + quoteA + quoteB)
             price = response.data.tick.data[0].price;
-            return [price, null];
+            return [null, price];
         } catch (e) {
-            e.message = `get ${exchangeName} ${quoteName}'s price error: ${e.message} `;
-            return [price, e];
+            e.message = `get ${exchangeName} ${quoteA} ${quoteB}'s price error: ${e.message} `;
+            return [e];
         }
     } else if (exchangeName == 'bian') {
         try {
-            let symbol = quoteName.replace('\/', '').toUpperCase();
-            let response = await axios.get(`https://api.binance.com/api/v3/trades?symbol=${symbol}&limit=1`);
+            let symbolA = quoteA.toUpperCase();
+            let symbolB = quoteB.toUpperCase();
+            let response = await axios.get(`https://api.binance.com/api/v3/trades?symbol=${symbolA}${symbolB}&limit=1`);
             price = response.data[0].price;
-            return [price, null];
+            return [null, price];
         } catch (e) {
-            e.message = `get ${exchangeName} ${quoteName}'s price error: ${e.message} `;
-            return [price, e];
+            e.message = `get ${exchangeName} ${quoteA} ${quoteB}'s price error: ${e.message} `;
+            return [e];
         }
     } else if (exchangeName == 'ok') {
         try {
-            let symbol = quoteName.replace('\/', '-').toUpperCase();
-            let response = await axios.get(`https://www.okex.com/api/spot/v3/instruments/${symbol}/ticker`);
+            let symbolA = quoteA.toUpperCase();
+            let symbolB = quoteB.toUpperCase();
+            let response = await axios.get(`https://www.okex.com/api/spot/v3/instruments/${symbolA}-${symbolB}/ticker`);
             price = response.data.last;
-            return [price, null];
+            return [null, price];
         } catch (e) {
-            e.message = `get ${exchangeName} ${quoteName}'s price error: ${e.message} `;
-            return [price, e];
+            e.message = `get ${exchangeName} ${quoteA} ${quoteB}'s price error: ${e.message} `;
+            return [e];
         }
     }
 }
@@ -204,7 +252,8 @@ async function getCefiPrice(exchangeName, quoteName) {
 //异步并发执行，多个交易所、多个币种独立抓取。同步返回会影响后去请求。 callback用于在获取到数据后到行为
 async function collectCeFi(exchangeName, quoteName, callback) {
     while (true) {
-        let [price, error] = await getCefiPrice(exchangeName, quoteName);
+        let [quoteA, quoteB] = quoteName.split('/');
+        let [error, price] = await getCefiPrice(exchangeName, quoteA, quoteB);
         if (error) {
             if (callback) {
                 await callback(error);
@@ -213,23 +262,12 @@ async function collectCeFi(exchangeName, quoteName, callback) {
             continue;
         }
 
-        price = price - 0;
         if (callback) {
-            await callback(null, price);
+            await callback(null, [
+                {"quoteA": quoteA, "quoteB": quoteB, "price": price},
+                {"quoteA": quoteB, "quoteB": quoteA, "price": (1 / price).toFixed(8)}
+            ]);
         }
-
-
-        // socket.emit('collected', {exchangeName, quoteName, price});
-        // let now = new dayjs();
-        // try {
-        //     sql.query("insert into " + tableName + " (minute, price) values (?, ?) on duplicate key update price = values(price);",
-        //         {
-        //             replacements: [now.format("YYYYMMDDHHmm"), price],
-        //             type: 'INSERT'
-        //         });
-        // } catch (e) {
-        //     console.error(`insert error: ${exchangeName}, ${quoteName}, ${e}`)
-        // }
 
         await common.sleep(15000);
     }
