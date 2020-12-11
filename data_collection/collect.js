@@ -60,12 +60,12 @@ async function defiCrawler(quote, socket) {
                 let price = priceList[i];
                 let priceInfo = new struct.SocketCollectedPriceInfo(q.protocol, q.exchange, price.quoteA, price.quoteB, price.price);
                 socket.emit('collected_v3', priceInfo);
-                let [err, ok] = await updatePriceNow(q.protocol, q.exchange, price.quoteA + '/' + price.quoteB, price.price, 0);
+                let [err, ok] = await updatePriceNow(q.protocol, q.exchange, price.quoteA + '/' + price.quoteB, price.price, blockHeight);
                 if (err) {
                     console.error(`collectCeFi updatePriceNow error: ${err.message || ""}`);
                 }
                 let now = new dayjs();
-                [err, ok] = await updatePriceHistory(q.protocol, q.exchange, now.format("YYYYMMDDHHmm"), price.quoteA + '/' + price.quoteB, price.price, 0);
+                [err, ok] = await updatePriceHistory(q.protocol, q.exchange, now.format("YYYYMMDDHHmm"), price.quoteA + '/' + price.quoteB, price.price, blockHeight);
                 if (err) {
                     console.error(`collectCeFi updatePriceHistory error: ${err.message || ""}`);
                 }
@@ -119,6 +119,24 @@ async function updatePriceNow(protocol, exchange, quote, price, height) {
         return [e, false];
     }
     return [null, true];
+}
+
+//TODO 待改进
+async function batchUpdatePriceList(priceList, protocol, exchange, socket){
+    for (let i = 0; i < priceList.length; i++) {
+        let price = priceList[i];
+        let priceInfo = new struct.SocketCollectedPriceInfo(protocol, exchange, price.quoteA, price.quoteB, price.price);
+        socket.emit('collected_v3', priceInfo);
+        let [err, ok] = await updatePriceNow(protocol, exchange, price.quoteA + '/' + price.quoteB, price.price, 0);
+        if (err) {
+            console.error(`collectCeFi updatePriceNow error: ${err.message || ""}`);
+        }
+        let now = new dayjs();
+        [err, ok] = await updatePriceHistory(protocol, exchange, now.format("YYYYMMDDHHmm"), price.quoteA + '/' + price.quoteB, price.price, 0);
+        if (err) {
+            console.error(`collectCeFi updatePriceHistory error: ${err.message || ""}`);
+        }
+    }
 }
 
 async function updatePriceHistory(protocol, exchange, minute, quote, price, height) {
