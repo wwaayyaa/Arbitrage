@@ -13,13 +13,15 @@ const dayjs = require('dayjs');
 let cc = require('../ChainConfig');
 const axios = require('axios')
 
+const struct = require('../common/struct');
+
 const BN = require('bignumber.js');
 const Web3 = require('web3');
 let web3;
 if (process.env.APP_ENV == 'production') {
     web3 = new Web3(new Web3.providers.HttpProvider("https://mainnet.infura.io/v3/9cc52b7d92aa4107addd8dcf83a8b008"));
 } else {
-    web3 = new Web3('http://0.0.0.0:9545');
+    web3 = new Web3('http://0.0.0.0:8545');
 }
 
 let uniRoute2 = new web3.eth.Contract(cc.exchange.uniswap.router02.abi, cc.exchange.uniswap.router02.address)
@@ -125,7 +127,7 @@ let msgTPL = {
         //成功返回以上数据，失败则是抛出整个http等response，可以查看e.body得到错误信息。
         // let ret = await binance.marketBuy('ETHUSDT', 90000)
         // let ret = await binance.marketSell('ETHUSDT', 0.0999)
-        console.log('ret', ret);
+        // console.log('ret', ret);
     } catch (e) {
         console.log('ee', e)
     }
@@ -170,6 +172,30 @@ io.on('connection', socket => {
                 job = true;
             }
         }
+    });
+
+    socket.on('collected_v3', async (data) => {
+        console.log('~', data, typeof data);
+        data.__proto__ = struct.SocketCollectedPriceInfo.prototype;
+        console.log('~', data, typeof data);
+        //TODO
+        // pushData(data.protocol, data.exchangeName, data.quoteA, data.quoteB, data.price);
+        // console.log('~~', priceData);
+
+        // socket.broadcast.emit('price', data);
+        //
+        // //监控币安和uni的eth/usdt价格。
+        // if (data.quoteName == 'eth/usdt' && (data.exchangeName == 'bian' || data.exchangeName == 'uniswap')) {
+        //     let key = `${data.exchangeName}-${data.quoteName}`;
+        //     let uniKey = `uniswap-eth/usdt`;
+        //     let bianKey = `bian-eth/usdt`;
+        //     let uniPrice = priceData[uniKey];
+        //     let bianPrice = priceData[bianKey];
+        //
+        //     if (Math.abs(bianPrice / uniPrice - 1) >= 0.01) {
+        //         job = true;
+        //     }
+        // }
     });
 
     socket.on('init', data => {
@@ -257,13 +283,13 @@ let job = false;
     //init approve
     let allowance = await usdt.methods.allowance(acc.address, cc.exchange.uniswap.router02.address).call();
     console.log(`allowance ${allowance}`);
-    if (allowance == 0) {
-        //只允许一次，等不足的时候先设置0，再设置新的值。
-        await usdt.methods.approve(cc.exchange.uniswap.router02.address, web3.utils.toWei("10000000", "mwei")).send({
-            from: acc.address,
-            gas: 5000000
-        })
-    }
+    // if (allowance == 0) {
+    //     //只允许一次，等不足的时候先设置0，再设置新的值。
+    //     await usdt.methods.approve(cc.exchange.uniswap.router02.address, web3.utils.toWei("10000000", "mwei")).send({
+    //         from: acc.address,
+    //         gas: 5000000
+    //     })
+    // }
 
     while (true) {
         if (job) {
