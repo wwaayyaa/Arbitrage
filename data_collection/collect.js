@@ -32,7 +32,7 @@ async function loadTokens(sql) {
     return ret;
 }
 
-async function defiCrawler(quote) {
+async function defiCrawler(quote, socket) {
     let blockHeight = 0;
     let blockHash = "";
 
@@ -42,9 +42,13 @@ async function defiCrawler(quote) {
             await common.sleep(1000);
             continue;
         }
+        let now = new dayjs();
+        console.log(`new block: ${blockHeight} ${blockHash} ${now.unix()}`);
         //块变化，需要更新所有价格
         //just fuck it
+        for (let i = 0; i < quote.length; i++) {
 
+        }
 
         await common.sleep(1000);
     }
@@ -55,21 +59,21 @@ async function cefiCrawler(quote, socket) {
         let q = quote[i];
         collectCeFi(q.exchange, q.name, async function (e, priceList) {
             // socket
-            if (e){
-                console.error(`collectCeFi callback error: ${e.message ||""}`);
+            if (e) {
+                console.error(`collectCeFi callback error: ${e.message || ""}`);
                 return;
             }
             for (let i = 0; i < priceList.length; i++) {
                 let price = priceList[i];
                 let priceInfo = new struct.SocketCollectedPriceInfo(q.protocol, q.exchange, price.quoteA, price.quoteB, price.price);
                 socket.emit('collected_v3', priceInfo);
-                let [err, ok] = await updatePriceNow(q.protocol, q.exchange, price.quoteA+'/'+price.quoteB, price.price, 0);
-                if (err){
+                let [err, ok] = await updatePriceNow(q.protocol, q.exchange, price.quoteA + '/' + price.quoteB, price.price, 0);
+                if (err) {
                     console.error(`collectCeFi updatePriceNow error: ${err.message || ""}`);
                 }
                 let now = new dayjs();
-                [err, ok] = await updatePriceHistory(q.protocol, q.exchange, now.format("YYYYMMDDHHmm"), price.quoteA+'/'+price.quoteB, price.price, 0);
-                if (err){
+                [err, ok] = await updatePriceHistory(q.protocol, q.exchange, now.format("YYYYMMDDHHmm"), price.quoteA + '/' + price.quoteB, price.price, 0);
+                if (err) {
                     console.error(`collectCeFi updatePriceHistory error: ${err.message || ""}`);
                 }
             }
@@ -94,6 +98,7 @@ async function updatePriceNow(protocol, exchange, quote, price, height) {
     }
     return [null, true];
 }
+
 async function updatePriceHistory(protocol, exchange, minute, quote, price, height) {
     let now = new dayjs();
     try {
@@ -247,6 +252,69 @@ async function getCefiPrice(exchangeName, quoteA, quoteB) {
             return [e];
         }
     }
+}
+
+async function getDeFiPrice(protocol, exchange, quote) {
+    if (protocol == 'uniswap') {
+
+    } else if (protocol == 'balancer') {
+
+    } else {
+
+    }
+}
+
+//需要知道quoteA、B，原因是减少合约的调用。否则就需要再调用两次token0、token1方法获取token的地址。节省时间。
+async function getUniswapPrice(address, abi, quoteA, quoteB) {
+    // 根据合约的
+    let ctt = new web3.eth.Contract(abi, address);
+    let reserves = [];
+    try {
+        reserves = await ctt.methods.getReserves().call({from: acc.address});
+    } catch (e) {
+        e.message = `getUniswapPrice getReserves error: ${e.message}`;
+        return [e];
+    }
+
+    let reserve0 = reserves._reserve0;
+    let reserve1 = reserves._reserve1;
+
+    let amount0 = new BN(reserve0).div(new BN(10).pow(tokens[quoteA].decimal));
+    let amount1 = new BN(reserve1).div(new BN(10).pow(tokens[quoteB].decimal));
+    let price01 = amount0.div(amount1).toFixed(8);
+    let price10 = amount1.div(amount0).toFixed(8);
+
+    return [null, [
+        {"quoteA": quoteA, "quoteB": quoteB, "price": price01},
+        {"quoteA": quoteB, "quoteB": quoteA, "price": price10}
+    ]];
+}
+
+//balancer 可能是N个token，需要动态计算
+async function getBalancerPrice(address,
+                                abi,
+                                /*该合约对应的token顺序,[usdt, usdc, ...]*/ quotes,
+                                // /*和quotes相对应*/ weights,
+                                tokens) {
+    let ctt = new web3.eth.Contract(abi, address);
+    let priceList = [];
+    for (let i = 0; i < quotes.length - 1; i++) {
+        //方案一 1获取a的balance
+        for (let j = i + 1; j < quotes.length; j++) {
+            //方案一 2获取b的balance，然后工具公式计算出spotPrice
+            //方案二，直接调用 getSpotPrice 获取两两交易对的价格 （采用方案二把，io少一次（虽然合约内也会耗时），暂时也不需要balance数据。）
+            let spotPrice = 0;
+            try {
+                spotPrice = await ctt.methods.getSpotPrice(tokens[quotes[i]].address, tokens[quotes[j]].address).call({from: acc.address});
+                priceList.push({"quoteA": quotes[i], "quoteB": quotes[j], "price": spotPrice});
+                spotPrice = await ctt.methods.getSpotPrice(tokens[quotes[j]].address, tokens[quotes[i]].address).call({from: acc.address});
+                priceList.push({"quoteA": quotes[j], "quoteB": quotes[i], "price": spotPrice});
+            } catch (e) {
+                return [e];
+            }
+        }
+    }
+    return [null, priceList];
 }
 
 //异步并发执行，多个交易所、多个币种独立抓取。同步返回会影响后去请求。 callback用于在获取到数据后到行为
