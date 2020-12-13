@@ -175,9 +175,12 @@ io.on('connection', socket => {
     });
 
     socket.on('collected_v3', async (data) => {
-        console.log('~', data, typeof data);
-        data.__proto__ = struct.SocketCollectedPriceInfo.prototype;
-        console.log('~', data, typeof data);
+        // console.log('~', data, typeof data);
+        for(let i = 0;i<data.length;i++){
+            let d = data[i];
+            d.__proto__ = struct.SocketCollectedPriceInfo.prototype;
+            console.log('~', d, typeof d);
+        }
         //TODO
         // pushData(data.protocol, data.exchangeName, data.quoteA, data.quoteB, data.price);
         // console.log('~~', priceData);

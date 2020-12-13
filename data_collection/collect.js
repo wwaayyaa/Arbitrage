@@ -6,7 +6,14 @@ let BN = require('bignumber.js');
 let dayjs = require('dayjs');
 
 let Web3 = require('web3');
-let web3 = new Web3('http://8.210.15.226:8545');
+let web3;
+if (process.env.APP_ENV == 'production') {
+    web3 = new Web3(new Web3.providers.HttpProvider("https://mainnet.infura.io/v3/9cc52b7d92aa4107addd8dcf83a8b008"));
+} else {
+    web3 = new Web3('http://0.0.0.0:8545');
+}
+
+// let web3 = new Web3('http://8.210.15.226:8545');
 let cc = require('../ChainConfig');
 
 let Exchange = require('./exchange/exchange');
@@ -56,20 +63,30 @@ async function defiCrawler(quote, socket) {
                 console.error(`defiCrawler error: ${q.protocol} ${q.exchange} ${q.name} ${err.message || ""}`);
                 continue;
             }
-            for (let i = 0; i < priceList.length; i++) {
-                let price = priceList[i];
-                let priceInfo = new struct.SocketCollectedPriceInfo(q.protocol, q.exchange, price.quoteA, price.quoteB, price.price);
-                socket.emit('collected_v3', priceInfo);
-                let [err, ok] = await updatePriceNow(q.protocol, q.exchange, price.quoteA + '/' + price.quoteB, price.price, blockHeight);
-                if (err) {
-                    console.error(`collectCeFi updatePriceNow error: ${err.message || ""}`);
-                }
-                let now = new dayjs();
-                [err, ok] = await updatePriceHistory(q.protocol, q.exchange, now.format("YYYYMMDDHHmm"), price.quoteA + '/' + price.quoteB, price.price, blockHeight);
-                if (err) {
-                    console.error(`collectCeFi updatePriceHistory error: ${err.message || ""}`);
-                }
+            let now = new dayjs();
+            let minute = now.format("YYYYMMDDHHmm");
+            priceList = priceList.map(p => {
+                p.protocol = q.protocol;
+                p.exchange = q.exchange;
+                p.quote = `${p.quoteA}/${p.quoteB}`;
+                p.minute = minute;
+                p.height = blockHeight;
+                return p;
+            });
+            [err, ok] = await updatePriceNowBatch(priceList);
+            if (err) {
+                console.error(`updatePriceNowBatch error: ${q.exchange} ${q.name} ${err.message || ""}`)
+                continue;
             }
+            [err, ok] = await updatePriceHistoryBatch(priceList);
+            if (err) {
+                console.error(`updatePriceHistory error: ${q.exchange} ${q.name} ${err.message || ""}`)
+                continue;
+            }
+            let SocketCollectedPriceInfoList = priceList.map(p => {
+                return new struct.SocketCollectedPriceInfo(p.protocol, p.exchange, p.quoteA, p.quoteB, p.price, blockHeight);
+            });
+            socket.emit('collected_v3', SocketCollectedPriceInfoList);
         }
 
         await common.sleep(1000);
@@ -85,20 +102,45 @@ async function cefiCrawler(quote, socket) {
                 console.error(`collectCeFi callback error: ${e.message || ""}`);
                 return;
             }
-            for (let i = 0; i < priceList.length; i++) {
-                let price = priceList[i];
-                let priceInfo = new struct.SocketCollectedPriceInfo(q.protocol, q.exchange, price.quoteA, price.quoteB, price.price);
-                socket.emit('collected_v3', priceInfo);
-                let [err, ok] = await updatePriceNow(q.protocol, q.exchange, price.quoteA + '/' + price.quoteB, price.price, 0);
-                if (err) {
-                    console.error(`collectCeFi updatePriceNow error: ${err.message || ""}`);
-                }
-                let now = new dayjs();
-                [err, ok] = await updatePriceHistory(q.protocol, q.exchange, now.format("YYYYMMDDHHmm"), price.quoteA + '/' + price.quoteB, price.price, 0);
-                if (err) {
-                    console.error(`collectCeFi updatePriceHistory error: ${err.message || ""}`);
-                }
+            let now = new dayjs();
+            let minute = now.format("YYYYMMDDHHmm");
+            priceList = priceList.map(p => {
+                p.protocol = q.protocol;
+                p.exchange = q.exchange;
+                p.quote = `${p.quoteA}/${p.quoteB}`;
+                p.minute = minute;
+                p.height = 0;
+                return p;
+            });
+            let [err, ok] = await updatePriceNowBatch(priceList);
+            if (err) {
+                console.error(`updatePriceNowBatch error: ${q.exchange} ${q.name} ${err.message || ""}`)
+                return;
             }
+            [err, ok] = await updatePriceHistoryBatch(priceList);
+            if (err) {
+                console.error(`updatePriceHistory error: ${q.exchange} ${q.name} ${err.message || ""}`)
+                return;
+            }
+            let SocketCollectedPriceInfoList = priceList.map(p => {
+                return new struct.SocketCollectedPriceInfo(p.protocol, p.exchange, p.quoteA, p.quoteB, p.price);
+            });
+            socket.emit('collected_v3', SocketCollectedPriceInfoList);
+
+            // for (let i = 0; i < priceList.length; i++) {
+            //     let price = priceList[i];
+            //     let priceInfo = new struct.SocketCollectedPriceInfo(q.protocol, q.exchange, price.quoteA, price.quoteB, price.price);
+            //     socket.emit('collected_v3', priceInfo);
+            //     let [err, ok] = await updatePriceNow(q.protocol, q.exchange, price.quoteA + '/' + price.quoteB, price.price, 0);
+            //     if (err) {
+            //         console.error(`collectCeFi updatePriceNow error: ${err.message || ""}`);
+            //     }
+            //     let now = new dayjs();
+            //     [err, ok] = await updatePriceHistory(q.protocol, q.exchange, now.format("YYYYMMDDHHmm"), price.quoteA + '/' + price.quoteB, price.price, 0);
+            //     if (err) {
+            //         console.error(`collectCeFi updatePriceHistory error: ${err.message || ""}`);
+            //     }
+            // }
         });
         await common.sleep(100);
     }
@@ -121,22 +163,30 @@ async function updatePriceNow(protocol, exchange, quote, price, height) {
     return [null, true];
 }
 
-//TODO 待改进
-async function batchUpdatePriceList(priceList, protocol, exchange, socket){
+async function updatePriceNowBatch(priceList) {
+    let now = new dayjs();
+    now = now.format("YYYY-MM-DD HH:mm:ss");
+    let args = [];
+    let values = [];
     for (let i = 0; i < priceList.length; i++) {
-        let price = priceList[i];
-        let priceInfo = new struct.SocketCollectedPriceInfo(protocol, exchange, price.quoteA, price.quoteB, price.price);
-        socket.emit('collected_v3', priceInfo);
-        let [err, ok] = await updatePriceNow(protocol, exchange, price.quoteA + '/' + price.quoteB, price.price, 0);
-        if (err) {
-            console.error(`collectCeFi updatePriceNow error: ${err.message || ""}`);
-        }
-        let now = new dayjs();
-        [err, ok] = await updatePriceHistory(protocol, exchange, now.format("YYYYMMDDHHmm"), price.quoteA + '/' + price.quoteB, price.price, 0);
-        if (err) {
-            console.error(`collectCeFi updatePriceHistory error: ${err.message || ""}`);
-        }
+        let p = priceList[i];
+        args.push(p.protocol, p.exchange, p.quote, p.price, p.height, now);
+        values.push('(?, ?, ?, ?, ?, ?)');
     }
+    values = values.join(',');
+    try {
+        await sql.query("insert into price_now (protocol, exchange, quote, price, updated_height, updated_at) " +
+            `values  ${values}` +
+            "on duplicate key update " +
+            "price = values(price),updated_height = values(updated_height),updated_at = values(updated_at) ",
+            {
+                replacements: args,
+                type: 'INSERT'
+            })
+    } catch (e) {
+        return [e, false];
+    }
+    return [null, true];
 }
 
 async function updatePriceHistory(protocol, exchange, minute, quote, price, height) {
@@ -148,6 +198,32 @@ async function updatePriceHistory(protocol, exchange, minute, quote, price, heig
             "price = values(price),updated_height = values(updated_height),updated_at = values(updated_at) ",
             {
                 replacements: [protocol, exchange, minute, quote, price, height || 0, now.format("YYYY-MM-DD HH:mm:ss")],
+                type: 'INSERT'
+            })
+    } catch (e) {
+        return [e, false];
+    }
+    return [null, true];
+}
+
+async function updatePriceHistoryBatch(priceList) {
+    let now = new dayjs();
+    now = now.format("YYYY-MM-DD HH:mm:ss");
+    let args = [];
+    let values = [];
+    for (let i = 0; i < priceList.length; i++) {
+        let p = priceList[i];
+        args.push(p.protocol, p.exchange, p.minute, p.quote, p.price, p.height, now);
+        values.push('(?, ?, ?, ?, ?, ?, ?)');
+    }
+    values = values.join(',');
+    try {
+        await sql.query("insert into price_history (protocol, exchange, minute, quote, price, updated_height, updated_at) " +
+            `values ${values} ` +
+            "on duplicate key update " +
+            "price = values(price),updated_height = values(updated_height),updated_at = values(updated_at) ",
+            {
+                replacements: args,
                 type: 'INSERT'
             })
     } catch (e) {
@@ -305,7 +381,7 @@ async function getDeFiPrice(protocol, exchange, quote, address) {
     } else {
         return [new Error(`unsupported protocol: ${protocol}`)]
     }
-    if (err){
+    if (err) {
         return [err];
     }
     return [null, ret];
@@ -358,9 +434,17 @@ async function getBalancerPrice(address,
                 //需要考虑两个token的decimal的差，同时还要考虑BONE（10**18）单位是wei
                 let divisor = new BN(Math.pow(10, tokens[quotes[i]].decimal - tokens[quotes[j]].decimal));
                 let balancerBONE = new BN(10).pow(18);
-                priceList.push({"quoteA": quotes[j], "quoteB": quotes[i], "price": new BN(spotPrice).div(divisor).div(balancerBONE).toFixed(8)});
+                priceList.push({
+                    "quoteA": quotes[j],
+                    "quoteB": quotes[i],
+                    "price": new BN(spotPrice).div(divisor).div(balancerBONE).toFixed(8)
+                });
                 spotPrice = await ctt.methods.getSpotPrice(tokens[quotes[j]].address, tokens[quotes[i]].address).call({from: acc.address});
-                priceList.push({"quoteA": quotes[i], "quoteB": quotes[j], "price": new BN(spotPrice).times(divisor).div(balancerBONE).toFixed(8)});
+                priceList.push({
+                    "quoteA": quotes[i],
+                    "quoteB": quotes[j],
+                    "price": new BN(spotPrice).times(divisor).div(balancerBONE).toFixed(8)
+                });
             } catch (e) {
                 return [e];
             }
