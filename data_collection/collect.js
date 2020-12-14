@@ -44,6 +44,37 @@ async function defiCrawler(quote, socket) {
     let blockHeight = 0;
     let blockHash = "";
 
+    let doIt = async function (q, blockHeight, socket) {
+        let [err, priceList] = await getDeFiPrice(q.protocol, q.exchange, q.name, q.contract_address);
+        if (err) {
+            console.error(`defiCrawler error: ${q.protocol} ${q.exchange} ${q.name} ${err.message || ""}`);
+        }
+        let now = new dayjs();
+        let minute = now.format("YYYYMMDDHHmm");
+        priceList = priceList.map(p => {
+            p.protocol = q.protocol;
+            p.exchange = q.exchange;
+            p.quote = `${p.quoteA}/${p.quoteB}`;
+            p.minute = minute;
+            p.height = blockHeight;
+            return p;
+        });
+
+        let SocketCollectedPriceInfoList = priceList.map(p => {
+            return new struct.SocketCollectedPriceInfo(p.protocol, p.exchange, p.quoteA, p.quoteB, p.price, blockHeight);
+        });
+        socket.emit('collected_v3', SocketCollectedPriceInfoList);
+
+        [err, ok] = await updatePriceNowBatch(priceList);
+        if (err) {
+            console.error(`updatePriceNowBatch error: ${q.exchange} ${q.name} ${err.message || ""}`)
+        }
+        [err, ok] = await updatePriceHistoryBatch(priceList);
+        if (err) {
+            console.error(`updatePriceHistory error: ${q.exchange} ${q.name} ${err.message || ""}`)
+        }
+    };
+
     while (true) {
         let block = await web3.eth.getBlock("latest");
         if (block.number == blockHeight && block.hash == blockHash) {
@@ -54,39 +85,12 @@ async function defiCrawler(quote, socket) {
         blockHeight = block.number;
         blockHash = block.hash;
         console.log(`new block: ${blockHeight} ${blockHash} ${now.unix()}`);
-        //块变化，需要更新所有价格
+
         //just fuck it
         for (let i = 0; i < quote.length; i++) {
             let q = quote[i];
-            let [err, priceList] = await getDeFiPrice(q.protocol, q.exchange, q.name, q.contract_address);
-            if (err) {
-                console.error(`defiCrawler error: ${q.protocol} ${q.exchange} ${q.name} ${err.message || ""}`);
-                continue;
-            }
-            let now = new dayjs();
-            let minute = now.format("YYYYMMDDHHmm");
-            priceList = priceList.map(p => {
-                p.protocol = q.protocol;
-                p.exchange = q.exchange;
-                p.quote = `${p.quoteA}/${p.quoteB}`;
-                p.minute = minute;
-                p.height = blockHeight;
-                return p;
-            });
-            [err, ok] = await updatePriceNowBatch(priceList);
-            if (err) {
-                console.error(`updatePriceNowBatch error: ${q.exchange} ${q.name} ${err.message || ""}`)
-                continue;
-            }
-            [err, ok] = await updatePriceHistoryBatch(priceList);
-            if (err) {
-                console.error(`updatePriceHistory error: ${q.exchange} ${q.name} ${err.message || ""}`)
-                continue;
-            }
-            let SocketCollectedPriceInfoList = priceList.map(p => {
-                return new struct.SocketCollectedPriceInfo(p.protocol, p.exchange, p.quoteA, p.quoteB, p.price, blockHeight);
-            });
-            socket.emit('collected_v3', SocketCollectedPriceInfoList);
+            //并发提高速度
+            doIt(q, blockHeight, socket)
         }
 
         await common.sleep(1000);
