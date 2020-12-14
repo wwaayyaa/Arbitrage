@@ -1,3 +1,4 @@
+const axios = require('axios');
 exports.sleep = function(ms){
     return new Promise(resolve => setTimeout(() => resolve(), ms));
 };
@@ -9,12 +10,13 @@ exports.DingTPL = {
     },
 };
 exports.ding = async function ding(key, title, text) {
-    let msg = DingTPL;
+    let msg = this.DingTPL;
     msg.markdown.title = title;
     msg.markdown.text = text || title;
     try {
-        let response = await axios.post('https://oapi.dingtalk.com/robot/send?access_token=' + key, msg);
+        await axios.post('https://oapi.dingtalk.com/robot/send?access_token=' + key, msg);
+        return [null, true]
     } catch (e) {
-        console.error(`ding error: ${e.message} ${msg}`);
+        return [e, false]
     }
 };

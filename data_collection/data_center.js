@@ -11,6 +11,39 @@ const struct = require('../common/struct');
 
 let gBlock = {'height': 0, 'hash': ""};
 
+/* 纯数组，会有性能问题，先暂时不考虑。后期应该引入新的结构（引用，内存数据库）提高查询效率 */
+class Prices {
+    constructor(prices) {
+        this.prices = prices || {};
+    }
+
+    getKey(p) {
+        return `${p.protocol}/${p.exchange}/${p.quoteA}/${p.quoteB}`;
+    };
+
+    add(prices) {
+        for (let i = 0; i < prices.length; i++) {
+            this.prices[this.getKey(prices[i])] = prices[i];
+        }
+    };
+
+    findByQuoteAB(quoteA, quoteB) {
+        let ret = [];
+        for (let key in this.prices) {
+            if (this.prices[key].quoteA == quoteA, this.prices[key].quoteB == quoteB) {
+                ret.push(this.prices);
+            }
+        }
+        return ret;
+    };
+
+    prices() {
+        return this.prices;
+    }
+}
+
+let gPrices = new Prices();
+
 io.on('connection', socket => {
     console.log('connected');
 
@@ -30,16 +63,23 @@ io.on('connection', socket => {
         let timestamp = new dayjs().unix();
         for (let i = 0; i < data.length; i++) {
             let d = data[i];
-            d.__proto__ = struct.SocketCollectedPriceInfo.prototype;
-            console.log('~', d, typeof d);
-            if (d.protocol == 'cefi'){
-                d.timestamp = timestamp;
-            }
+            // d.__proto__ = struct.SocketCollectedPriceInfo.prototype;
+            // console.log('~', d, typeof d);
+
             //额外
-            d.now = timestamp;
-            d.nowHeight = gBlock.height;
-            d.expired = false;
+            // if (d.protocol == 'cefi') {
+            d.timestamp = timestamp;
+            // }
+            // d.nowHeight = gBlock.height;
+            // d.expired = false;
         }
+        gPrices.add(data);
+
+        socket.broadcast.emit('new_prices', data);
+
+        //TODO 便利每一组数据，找到匹配的交易对，看是否能够套利。
+
+        
 
         //TODO
         // pushData(data.protocol, data.exchangeName, data.quoteA, data.quoteB, data.price);
