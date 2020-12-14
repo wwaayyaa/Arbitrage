@@ -8,17 +8,13 @@
 const io = require('socket.io')(2077);
 const dayjs = require('dayjs');
 const struct = require('../common/struct');
-const cmm = require('../common/common');
-(async ()=>{
-    await cmm.ding("612342ba40defdd26f3228f35bbd0aeddcf9de619d9d4f9f80c2b47d39e4d0d0", "defi", "defi");
-})()
-return;
 
 let gBlock = {'height': 0, 'hash': ""};
 
 io.on('connection', socket => {
     console.log('connected');
 
+    /* Block Height & Hash*/
     socket.on('new_block', async (data) => {
         gBlock.height = data.height;
         gBlock.hash = data.hash;
@@ -28,13 +24,23 @@ io.on('connection', socket => {
         socket.emit('new_block', gBlock);
     });
 
+    /* 获取上报的 */
     socket.on('collected_v3', async (data) => {
         // console.log('~', data, typeof data);
+        let timestamp = new dayjs().unix();
         for (let i = 0; i < data.length; i++) {
             let d = data[i];
             d.__proto__ = struct.SocketCollectedPriceInfo.prototype;
             console.log('~', d, typeof d);
+            if (d.protocol == 'cefi'){
+                d.timestamp = timestamp;
+            }
+            //额外
+            d.now = timestamp;
+            d.nowHeight = gBlock.height;
+            d.expired = false;
         }
+
         //TODO
         // pushData(data.protocol, data.exchangeName, data.quoteA, data.quoteB, data.price);
         // console.log('~~', priceData);

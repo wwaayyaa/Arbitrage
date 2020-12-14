@@ -54,7 +54,6 @@ async function defiCrawler(quote, socket) {
         priceList = priceList.map(p => {
             p.protocol = q.protocol;
             p.exchange = q.exchange;
-            p.quote = `${p.quoteA}/${p.quoteB}`;
             p.minute = minute;
             p.height = blockHeight;
             return p;
@@ -111,7 +110,6 @@ async function cefiCrawler(quote, socket) {
             priceList = priceList.map(p => {
                 p.protocol = q.protocol;
                 p.exchange = q.exchange;
-                p.quote = `${p.quoteA}/${p.quoteB}`;
                 p.minute = minute;
                 p.height = 0;
                 return p;
@@ -131,34 +129,20 @@ async function cefiCrawler(quote, socket) {
             });
             socket.emit('collected_v3', SocketCollectedPriceInfoList);
 
-            // for (let i = 0; i < priceList.length; i++) {
-            //     let price = priceList[i];
-            //     let priceInfo = new struct.SocketCollectedPriceInfo(q.protocol, q.exchange, price.quoteA, price.quoteB, price.price);
-            //     socket.emit('collected_v3', priceInfo);
-            //     let [err, ok] = await updatePriceNow(q.protocol, q.exchange, price.quoteA + '/' + price.quoteB, price.price, 0);
-            //     if (err) {
-            //         console.error(`collectCeFi updatePriceNow error: ${err.message || ""}`);
-            //     }
-            //     let now = new dayjs();
-            //     [err, ok] = await updatePriceHistory(q.protocol, q.exchange, now.format("YYYYMMDDHHmm"), price.quoteA + '/' + price.quoteB, price.price, 0);
-            //     if (err) {
-            //         console.error(`collectCeFi updatePriceHistory error: ${err.message || ""}`);
-            //     }
-            // }
         });
         await common.sleep(100);
     }
 }
 
-async function updatePriceNow(protocol, exchange, quote, price, height) {
+async function updatePriceNow(protocol, exchange, quoteA, quoteB, price, height) {
     let now = new dayjs();
     try {
-        await sql.query("insert into price_now (protocol, exchange, quote, price, updated_height, updated_at) " +
-            "values (?, ?, ?, ?, ?, ?) " +
+        await sql.query("insert into price_now (protocol, exchange, quote_a, quote_b, price, updated_height, updated_at) " +
+            "values (?, ?, ?, ?, ?, ?, ?) " +
             "on duplicate key update " +
             "price = values(price),updated_height = values(updated_height),updated_at = values(updated_at) ",
             {
-                replacements: [protocol, exchange, quote, price, height || 0, now.format("YYYY-MM-DD HH:mm:ss")],
+                replacements: [protocol, exchange, quoteA, quoteB, price, height || 0, now.format("YYYY-MM-DD HH:mm:ss")],
                 type: 'INSERT'
             })
     } catch (e) {
@@ -174,12 +158,12 @@ async function updatePriceNowBatch(priceList) {
     let values = [];
     for (let i = 0; i < priceList.length; i++) {
         let p = priceList[i];
-        args.push(p.protocol, p.exchange, p.quote, p.price, p.height, now);
-        values.push('(?, ?, ?, ?, ?, ?)');
+        args.push(p.protocol, p.exchange, p.quoteA, p.quoteB, p.price, p.height, now);
+        values.push('(?, ?, ?, ?, ?, ?, ?)');
     }
     values = values.join(',');
     try {
-        await sql.query("insert into price_now (protocol, exchange, quote, price, updated_height, updated_at) " +
+        await sql.query("insert into price_now (protocol, exchange, quote_a, quote_b, price, updated_height, updated_at) " +
             `values ${values} ` +
             "on duplicate key update " +
             "price = values(price),updated_height = values(updated_height),updated_at = values(updated_at) ",
@@ -193,15 +177,15 @@ async function updatePriceNowBatch(priceList) {
     return [null, true];
 }
 
-async function updatePriceHistory(protocol, exchange, minute, quote, price, height) {
+async function updatePriceHistory(protocol, exchange, minute, quoteA, quoteB, price, height) {
     let now = new dayjs();
     try {
-        await sql.query("insert into price_history (protocol, exchange, minute, quote, price, updated_height, updated_at) " +
-            "values (?, ?, ?, ?, ?, ?, ?) " +
+        await sql.query("insert into price_history (protocol, exchange, minute, quote_a, quote_b, price, updated_height, updated_at) " +
+            "values (?, ?, ?, ?, ?, ?, ?, ?) " +
             "on duplicate key update " +
             "price = values(price),updated_height = values(updated_height),updated_at = values(updated_at) ",
             {
-                replacements: [protocol, exchange, minute, quote, price, height || 0, now.format("YYYY-MM-DD HH:mm:ss")],
+                replacements: [protocol, exchange, minute, quoteA, quoteB, price, height || 0, now.format("YYYY-MM-DD HH:mm:ss")],
                 type: 'INSERT'
             })
     } catch (e) {
@@ -217,15 +201,15 @@ async function updatePriceHistoryBatch(priceList) {
     let values = [];
     for (let i = 0; i < priceList.length; i++) {
         let p = priceList[i];
-        args.push(p.protocol, p.exchange, p.minute, p.quote, p.price, p.height, now);
-        values.push('(?, ?, ?, ?, ?, ?, ?)');
+        args.push(p.protocol, p.exchange, p.minute, p.quoteA, p.quoteB, p.price, p.height, now);
+        values.push('(?, ?, ?, ?, ?, ?, ?, ?)');
     }
     values = values.join(',');
     try {
-        await sql.query("insert into price_history (protocol, exchange, minute, quote, price, updated_height, updated_at) " +
+        await sql.query("insert into price_history (protocol, exchange, minute, quote_a, quote_b, price, updated_height, updated_at) " +
             `values ${values} ` +
             "on duplicate key update " +
-            "price = values(price),updated_height = values(updated_height),updated_at = values(updated_at) ",
+            "price = values(price), updated_height = values(updated_height), updated_at = values(updated_at) ",
             {
                 replacements: args,
                 type: 'INSERT'
