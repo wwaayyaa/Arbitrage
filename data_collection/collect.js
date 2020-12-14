@@ -176,7 +176,7 @@ async function updatePriceNowBatch(priceList) {
     values = values.join(',');
     try {
         await sql.query("insert into price_now (protocol, exchange, quote, price, updated_height, updated_at) " +
-            `values  ${values}` +
+            `values ${values} ` +
             "on duplicate key update " +
             "price = values(price),updated_height = values(updated_height),updated_at = values(updated_at) ",
             {
