@@ -38,7 +38,7 @@ async function main(){
         exchange: '0x7afe74ae3c19f070c109a38c286684256adc656c',
         quoteA: 'weth',
         quoteB: 'dai',
-        price: '588',
+        price: '500',
     }];
     let SocketCollectedPriceInfoList = priceList.map(p => {
         return new struct.SocketCollectedPriceInfo(p.protocol, p.exchange, p.quoteA, p.quoteB, p.price, 123);

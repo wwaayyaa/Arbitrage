@@ -4,10 +4,18 @@
 *   对外提供实时数据查询
 *   主动发现可套利交易对，并生成db任务。
 * */
+require('dotenv').config();
 
 const io = require('socket.io')(2077);
 const dayjs = require('dayjs');
 const struct = require('../common/struct');
+const common = require('../common/common');
+const {v4: uuidv4} = require('uuid');
+const {Sequelize} = require('sequelize');
+const sql = new Sequelize(process.env.DB_DATABASE, process.env.DB_USER, process.env.DB_PASS, {
+    host: process.env.DB_HOST,
+    dialect: 'mysql'
+});
 
 let gBlock = {'height': 0, 'hash': ""};
 
@@ -56,6 +64,7 @@ class Prices {
 }
 
 let gPrices = new Prices();
+let gJobs = [];
 
 io.on('connection', socket => {
     console.log('connected');
@@ -90,6 +99,7 @@ io.on('connection', socket => {
 
         socket.broadcast.emit('new_prices', data);
 
+        /* 此处是各种套利模型判断价格是否达到触发值的地方，未来可能要剥离 */
         //根据变动的数据，和已更新的数据做对比。避免全量筛选，减少循环次数。
         for (let i = 0; i < data.length; i++) {
             let p = data[i];
@@ -106,7 +116,64 @@ io.on('connection', socket => {
                 }
                 //大于套利阈值
                 console.log(`出现机会: `, p, pair);
-                //TODO
+                //TODO 生成uuidV4 记录到数据库、发送全局通知、生成任务（避免同币种任务生成）
+
+                /*
+                    step 生成分三种情况。
+                    eth在前
+                    eth在后
+                    无eth    我们需要知道这种的数量和价差比例，但是先不做，因为套利链条太长了，手续费太高。
+                 */
+                let step = [];
+                let status = 0;
+                if (p.quoteA == 'weth') {
+                    let s1, s2;
+                    if (p.price > pair.price) {
+                        s1 = p;
+                        s2 = pair;
+                    } else {
+                        s1 = pair;
+                        s2 = p;
+                    }
+                    s1.type = 'sell';
+                    s2.type = 'buy';
+                    step.push(s1, s2);
+                } else if (p.quoteB == 'weth') {
+                    let s1, s2;
+                    if (p.price > pair.price) {
+                        s1 = pair;
+                        s2 = p;
+                    } else {
+                        s1 = p;
+                        s2 = pair;
+                    }
+                    s1.type = 'buy';
+                    s2.type = 'sell';
+                    step.push(s1, s2);
+                } else {
+                    status = 3;
+                    //TODO 暂时忽略 三方搬砖套利
+                }
+
+                let job = {
+                    uuid: uuidv4(),
+                    type: status == 3 ? "triple_move_bricks" : "move_bricks",
+                    step: step,
+                    quote: `${p.quoteA}/${p.quoteB}`,
+                    status: status,
+                    principal: 1,
+                    txFee: 0,
+                    profit: 0,
+                    txHash: "",
+                }
+
+                socket.broadcast.emit('new_arbitrage', job);
+                let [err, ok] = await newArbitrageJob(job.uuid, job.type, JSON.stringify(job.step), job.quote, job.status, job.principal, job.txFee)
+                if (err){
+                    console.error(`newArbitrageJob error: `, err);
+                }
+
+
             }
         }
 
@@ -134,3 +201,36 @@ io.on('connection', socket => {
         // console.log('disconnect')
     });
 });
+
+async function newArbitrageJob(uuid, type, step, quote, status, principal, txFee){
+    let now = new dayjs();
+    try {
+        await sql.query("insert into arbitrage_job (uuid, type, step, quote, status, principal, tx_fee, created_at, updated_at) " +
+            "values (?, ?, ?, ?, ?, ?, ?, ?, ?) " ,
+            {
+                replacements: [uuid, type, step, quote, status, principal, txFee, now.format("YYYY-MM-DD HH:mm:ss"), now.format("YYYY-MM-DD HH:mm:ss")],
+                type: 'INSERT'
+            })
+    } catch (e) {
+        return [e, false];
+    }
+    return [null, true];
+}
+
+async function main() {
+
+}
+
+// async function jobConsumer(){
+//     while (true){
+//         let job = gJobs.shift();
+//         //TODO 当前仅支持 move_bricks
+//         if(job.type == "move_bricks"){
+//
+//         }
+//
+//         await common.sleep(10);
+//     }
+// }
+
+main();
