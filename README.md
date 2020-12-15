@@ -10,7 +10,22 @@
 
 模块准备进一步拆分，会有一个socket的内存数据中心，web服务，抓取服务（cefi和defi拆分，cefi轮询，defi监控出块然后获取最新状态）。
 
-统一规范，本系统内所有的交易对，```AAA/BBB = N``` 都意义是指一个AAA由BBB计价，如果```eth/usdt = 543.40```,代表一个eth，需要543.3个usdt 
+统一规范，本系统内所有的交易对，```AAA/BBB = N``` 都意义是指一个AAA由BBB计价，如果```eth/usdt = 543.40```,代表一个eth，需要543.3个usdt
+
+### 套利方式
+
+#### 1. 搬砖套利
+这种方式目前主要是在两个交易对之间做，且需要有本金。 如我有eth， 可以在两个不同的交易所之间做 eth/usdt的套利，最后换回eth。
+例如 ETH -> USDT(甲交易所), USDT -> ETH(乙交易所)
+
+#### 2. 三方搬砖套利
+这种方式和搬砖类似，不过我并不持有任何一种token。此时需要我通过eth额外购买/闪贷其中一种token，再利上面的规则套利一圈，再卖成eth。
+例如一 ETH -> ATOKEN, ATOKEN -> BTOKEN(甲交易所), BTOKEN -> ATOKEN(乙交易所), ATOKEN -> ETH
+例如二 闪贷ATOKEN, ATOKEN -> BTOKEN(甲交易所), BTOKEN -> ATOKEN(乙交易所), 归还ATOKEN, 剩余ATOKEN -> ETH
+
+#### 3. 三角套利
+这个就是在3个quote之间流转一圈，实现套利。
+例如 ETH -> ATOKEN, ATOKEN -> BTOKEN, BTOKEN -> ETH
 
 
 ## 价格监控 v2
