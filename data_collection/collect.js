@@ -225,9 +225,10 @@ async function main() {
     gTokens = tokens
 
     //init socket
-    let socket = ioc('http://localhost:8084', {
-        path: '/s'
-    });
+    let socket = ioc('http://localhost:2077');
+    // let socket = ioc('http://localhost:8084', {
+    //     path: '/s'
+    // });
     // let block = await web3.eth.getBlock("latest");
     // c(block.number, block.hash);
     // return;

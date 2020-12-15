@@ -23,15 +23,28 @@ class Prices {
 
     add(prices) {
         for (let i = 0; i < prices.length; i++) {
-            this.prices[this.getKey(prices[i])] = prices[i];
+            let p = prices[i];
+            let k = this.getKey(prices[i]);
+            //引用，不做覆盖
+            // this.prices[this.getKey(prices[i])] = prices[i];
+            if (!this.prices.hasOwnProperty(k)) {
+                this.prices[k] = {};
+            }
+            this.prices[k].protocol = p.protocol;
+            this.prices[k].exchange = p.exchange;
+            this.prices[k].quoteA = p.quoteA;
+            this.prices[k].quoteB = p.quoteB;
+            this.prices[k].price = p.price;
+            this.prices[k].height = p.height;
+            this.prices[k].timestamp = p.timestamp;
         }
     };
 
     findByQuoteAB(quoteA, quoteB) {
         let ret = [];
         for (let key in this.prices) {
-            if (this.prices[key].quoteA == quoteA, this.prices[key].quoteB == quoteB) {
-                ret.push(this.prices);
+            if (this.prices[key].quoteA == quoteA && this.prices[key].quoteB == quoteB) {
+                ret.push(this.prices[key]);
             }
         }
         return ret;
@@ -59,7 +72,7 @@ io.on('connection', socket => {
 
     /* 获取上报的 */
     socket.on('collected_v3', async (data) => {
-        // console.log('~', data, typeof data);
+        console.log('~', data, typeof data);
         let timestamp = new dayjs().unix();
         for (let i = 0; i < data.length; i++) {
             let d = data[i];
@@ -77,28 +90,26 @@ io.on('connection', socket => {
 
         socket.broadcast.emit('new_prices', data);
 
-        //TODO 便利每一组数据，找到匹配的交易对，看是否能够套利。
+        //根据变动的数据，和已更新的数据做对比。避免全量筛选，减少循环次数。
+        for (let i = 0; i < data.length; i++) {
+            let p = data[i];
+            let pairs = gPrices.findByQuoteAB(p.quoteA, p.quoteB);
+            for (let j = 0; j < pairs.length; j++) {
+                let pair = pairs[j];
+                if (p.protocol == pair.protocol && p.exchange == pair.exchange) {
+                    continue;
+                }
+                //对比差价
+                let n = 0.01;
+                if (Math.abs(p.price / pair.price - 1) < n) {
+                    continue;
+                }
+                //大于套利阈值
+                console.log(`出现机会: `, p, pair);
+                //TODO
+            }
+        }
 
-        
-
-        //TODO
-        // pushData(data.protocol, data.exchangeName, data.quoteA, data.quoteB, data.price);
-        // console.log('~~', priceData);
-
-        // socket.broadcast.emit('price', data);
-        //
-        // //监控币安和uni的eth/usdt价格。
-        // if (data.quoteName == 'eth/usdt' && (data.exchangeName == 'bian' || data.exchangeName == 'uniswap')) {
-        //     let key = `${data.exchangeName}-${data.quoteName}`;
-        //     let uniKey = `uniswap-eth/usdt`;
-        //     let bianKey = `bian-eth/usdt`;
-        //     let uniPrice = priceData[uniKey];
-        //     let bianPrice = priceData[bianKey];
-        //
-        //     if (Math.abs(bianPrice / uniPrice - 1) >= 0.01) {
-        //         job = true;
-        //     }
-        // }
     });
 
     socket.on('init', data => {
