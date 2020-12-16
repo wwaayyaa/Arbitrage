@@ -1,4 +1,14 @@
-## 跨交易所双币种套利
+## V3版 套利
+我们需要先实现最常见的两种套利
+1. 两个交易对的搬砖套利
+    每四个参数作为一个步骤，根据exchange判断交易所。
+    arbitrage2(exchange, tokenIn, amountIn, tokenOut, exchange, tokenIn, amountIn, tokenOut,)
+1. 三个交易对的三角套利
+
+     
+
+
+## 跨交易所双币种套利 （暂时搁置）
 
 1. 首先要监控价格
 1. 发现两个交易对之间的差价有力可图则进行套利，影响因素：

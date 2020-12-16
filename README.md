@@ -28,6 +28,14 @@
 例如 ETH -> ATOKEN, ATOKEN -> BTOKEN, BTOKEN -> ETH
 
 
+### 合约的实现
+
+暂时的想法是，合约提供step数组参数，合约内置支持uniswap、balancer两种交易方式。
+合约内通过step 一步一步的执行计划，完成套利。
+每一个step可能的字段和取值范围
+protocol
+
+
 ## 价格监控 v2
 由于要同时监控DeFi和CeFi，所以之前的设计有些问题。
 老的设计只监控了uni和sushi，同时强制绑定了他们同样的交易对为一组。
