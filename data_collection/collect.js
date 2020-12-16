@@ -84,6 +84,7 @@ async function defiCrawler(quote, socket) {
         blockHeight = block.number;
         blockHash = block.hash;
         console.log(`new block: ${blockHeight} ${blockHash} ${now.unix()}`);
+        socket.emit('new_block', {height: blockHeight, hash: blockHash});
 
         //just fuck it
         for (let i = 0; i < quote.length; i++) {

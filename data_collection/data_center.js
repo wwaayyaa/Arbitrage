@@ -73,7 +73,7 @@ io.on('connection', socket => {
     socket.on('new_block', async (data) => {
         gBlock.height = data.height;
         gBlock.hash = data.hash;
-        socket.broadcase.emit('new_block', gBlock);
+        socket.broadcast.emit('new_block', gBlock);
     });
     socket.on('get_latest_block', async () => {
         socket.emit('new_block', gBlock);
@@ -109,6 +109,11 @@ io.on('connection', socket => {
                 if (p.protocol == pair.protocol && p.exchange == pair.exchange) {
                     continue;
                 }
+                let blockHeight = 0;
+                if (p.height != pair.height) {
+                    continue;
+                }
+                blockHeight = p.height;
                 //对比差价
                 let n = 0.01;
                 if (Math.abs(p.price / pair.price - 1) < n) {
@@ -159,6 +164,7 @@ io.on('connection', socket => {
                 let job = {
                     uuid: uuidv4(),
                     type: jobType,
+                    height: blockHeight,
                     step: step,
                     quote: `${p.quoteA}/${p.quoteB}`,
                     status: status,
@@ -166,11 +172,12 @@ io.on('connection', socket => {
                     txFee: 0,
                     profit: 0,
                     txHash: "",
+                    // timestamp: p.timestamp > pair.timestamp ? p.timestamp : pair.timestamp
                 };
 
                 //push & save & execute
                 socket.broadcast.emit('new_arbitrage', job);
-                let [err, ok] = await newArbitrageJob(job.uuid, job.type, JSON.stringify(job.step), job.quote, job.status, job.principal, job.txFee)
+                let [err, ok] = await newArbitrageJob(job.uuid, job.type, job.height, JSON.stringify(job.step), job.quote, job.status, job.principal, job.txFee)
                 if (err) {
                     console.error(`newArbitrageJob error: `, err);
                 }
@@ -204,13 +211,13 @@ io.on('connection', socket => {
     });
 });
 
-async function newArbitrageJob(uuid, type, step, quote, status, principal, txFee) {
+async function newArbitrageJob(uuid, type, height, step, quote, status, principal, txFee) {
     let now = new dayjs();
     try {
-        await sql.query("insert into arbitrage_job (uuid, type, step, quote, status, principal, tx_fee, created_at, updated_at) " +
-            "values (?, ?, ?, ?, ?, ?, ?, ?, ?) ",
+        await sql.query("insert into arbitrage_job (uuid, type, height, step, quote, status, principal, tx_fee, created_at, updated_at) " +
+            "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ",
             {
-                replacements: [uuid, type, step, quote, status, principal, txFee, now.format("YYYY-MM-DD HH:mm:ss"), now.format("YYYY-MM-DD HH:mm:ss")],
+                replacements: [uuid, type, height, step, quote, status, principal, txFee, now.format("YYYY-MM-DD HH:mm:ss"), now.format("YYYY-MM-DD HH:mm:ss")],
                 type: 'INSERT'
             })
     } catch (e) {
@@ -239,25 +246,76 @@ async function main() {
 }
 
 async function jobConsumer() {
+    let historyJob = function () {
+        this.jobs = [];
+    };
+    historyJob.prototype.add = function (job) {
+        if (this.jobs.length == 10) {
+            this.jobs.shift()
+        }
+        this.jobs.push(job);
+    };
+    historyJob.prototype.values = function () {
+        return this.jobs;
+    };
+    let hj = new historyJob;
+
     while (true) {
         let job = gJobs.shift();
         if (typeof job == "undefined") {
             await common.sleep(10);
             continue;
         }
+        if (job.height != gBlock.height) {
+            console.log(`${job.height} ${gBlock.height}`);
+            await updateArbitrageJob(job.uuid, 31, 0, 0, "");
+            continue;
+        }
+        let found = hj.values().find(j => {
+            if (j.height < job.height) {
+                //过期的，无视
+                return false;
+            }
+            // 方案1 过滤相反的quote
+            if(job.step[0].protocol == j.step[0].protocol
+                && job.step[0].exchange == j.step[0].exchange
+                && job.step[0].quoteA == j.step[0].quoteB
+                && job.step[0].quoteB == j.step[0].quoteA ){
+                return true;
+            }
+            //方案2
+            // let nowTokens = job.quote.split('/');
+            // let hisTokens = j.quote.split('/');
+            // console.log(`nowTokens,hisTokens`, nowTokens, hisTokens);
+            // for (let i = 0; i < nowTokens.length; i++) {
+            //     //这种方法太粗暴，weth只会执行一次，会过滤太多机会
+            //     let found_ = hisTokens.find(hisToken => hisToken == nowTokens[i])
+            //     if (found_) {
+            //         console.log(`found_`);
+            //         return true;
+            //     }
+            // }
 
-        //TODO 当前仅支持 move_bricks
+            //方案3 todo 每次执行一个记录一个执行中的token（非eth），通过对比历史token，如果有则逃过。
+            return false;
+        });
+        if (found) {
+            await updateArbitrageJob(job.uuid, 32, 0, 0, "");
+            continue;
+        }
+        hj.add(job);
+
         if (job.type == "move_bricks") {
             //trigger arbitrage
             await updateArbitrageJob(job.uuid, 1, 0, 0, "");
-            //TODO 生成交易计算是手续费
+            //TODO 生成交易计算手续费
 
             //TODO 成功之后回写利润和状态
             await updateArbitrageJob(job.uuid, 2, 123321, 666, "xxxx");
             console.log(`consumer move_bricks`);
         } else if (job.type == 'triple_move_bricks') {
             console.log(`consumer triple_move_bricks`);
-            await updateArbitrageJob(job.uuid, 3, 0, 0, "");
+            await updateArbitrageJob(job.uuid, 35, 0, 0, "");
         } else if (job.type == 'triangular_arbitrage') {
             console.log(`consumer triangular_arbitrage`);
         } else {
