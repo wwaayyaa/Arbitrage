@@ -81,7 +81,7 @@ io.on('connection', socket => {
 
     /* 获取上报的 */
     socket.on('collected_v3', async (data) => {
-        console.log('~', data, typeof data);
+        // console.log('~', data, typeof data);
         let timestamp = new dayjs().unix();
         for (let i = 0; i < data.length; i++) {
             let d = data[i];
@@ -115,7 +115,7 @@ io.on('connection', socket => {
                     continue;
                 }
                 //大于套利阈值
-                console.log(`出现机会: `, p, pair);
+                // console.log(`出现机会: `, p, pair);
                 //TODO 生成uuidV4 记录到数据库、发送全局通知、生成任务（避免同币种任务生成）
 
                 /*
@@ -126,6 +126,7 @@ io.on('connection', socket => {
                  */
                 let step = [];
                 let status = 0;
+                let jobType = 'move_bricks';
                 if (p.quoteA == 'weth') {
                     let s1, s2;
                     if (p.price > pair.price) {
@@ -151,13 +152,13 @@ io.on('connection', socket => {
                     s2.type = 'sell';
                     step.push(s1, s2);
                 } else {
-                    status = 3;
+                    jobType = 'triple_move_bricks';
                     //TODO 暂时忽略 三方搬砖套利
                 }
 
                 let job = {
                     uuid: uuidv4(),
-                    type: status == 3 ? "triple_move_bricks" : "move_bricks",
+                    type: jobType,
                     step: step,
                     quote: `${p.quoteA}/${p.quoteB}`,
                     status: status,
@@ -165,15 +166,16 @@ io.on('connection', socket => {
                     txFee: 0,
                     profit: 0,
                     txHash: "",
-                }
+                };
 
+                //push & save & execute
                 socket.broadcast.emit('new_arbitrage', job);
                 let [err, ok] = await newArbitrageJob(job.uuid, job.type, JSON.stringify(job.step), job.quote, job.status, job.principal, job.txFee)
-                if (err){
+                if (err) {
                     console.error(`newArbitrageJob error: `, err);
                 }
 
-
+                gJobs.push(job);
             }
         }
 
@@ -202,11 +204,11 @@ io.on('connection', socket => {
     });
 });
 
-async function newArbitrageJob(uuid, type, step, quote, status, principal, txFee){
+async function newArbitrageJob(uuid, type, step, quote, status, principal, txFee) {
     let now = new dayjs();
     try {
         await sql.query("insert into arbitrage_job (uuid, type, step, quote, status, principal, tx_fee, created_at, updated_at) " +
-            "values (?, ?, ?, ?, ?, ?, ?, ?, ?) " ,
+            "values (?, ?, ?, ?, ?, ?, ?, ?, ?) ",
             {
                 replacements: [uuid, type, step, quote, status, principal, txFee, now.format("YYYY-MM-DD HH:mm:ss"), now.format("YYYY-MM-DD HH:mm:ss")],
                 type: 'INSERT'
@@ -217,20 +219,53 @@ async function newArbitrageJob(uuid, type, step, quote, status, principal, txFee
     return [null, true];
 }
 
-async function main() {
-
+async function updateArbitrageJob(uuid, status, txFee, profit, txHash) {
+    let now = new dayjs();
+    try {
+        await sql.query("update arbitrage_job set status = ?, tx_fee = ?, profit = ?, tx_hash = ?, updated_at = ?" +
+            " where uuid = ?",
+            {
+                replacements: [status, txFee, profit, txHash, now.format("YYYY-MM-DD HH:mm:ss"), uuid],
+                type: 'UPDATE'
+            })
+    } catch (e) {
+        return [e, false];
+    }
+    return [null, true];
 }
 
-// async function jobConsumer(){
-//     while (true){
-//         let job = gJobs.shift();
-//         //TODO 当前仅支持 move_bricks
-//         if(job.type == "move_bricks"){
-//
-//         }
-//
-//         await common.sleep(10);
-//     }
-// }
+async function main() {
+    jobConsumer();
+}
+
+async function jobConsumer() {
+    while (true) {
+        let job = gJobs.shift();
+        if (typeof job == "undefined") {
+            await common.sleep(10);
+            continue;
+        }
+
+        //TODO 当前仅支持 move_bricks
+        if (job.type == "move_bricks") {
+            //trigger arbitrage
+            await updateArbitrageJob(job.uuid, 1, 0, 0, "");
+            //TODO 生成交易计算是手续费
+
+            //TODO 成功之后回写利润和状态
+            await updateArbitrageJob(job.uuid, 2, 123321, 666, "xxxx");
+            console.log(`consumer move_bricks`);
+        } else if (job.type == 'triple_move_bricks') {
+            console.log(`consumer triple_move_bricks`);
+            await updateArbitrageJob(job.uuid, 3, 0, 0, "");
+        } else if (job.type == 'triangular_arbitrage') {
+            console.log(`consumer triangular_arbitrage`);
+        } else {
+            console.warn(`unknown job ${job.uuid} ${job.type}`);
+        }
+
+        await common.sleep(10);
+    }
+}
 
 main();

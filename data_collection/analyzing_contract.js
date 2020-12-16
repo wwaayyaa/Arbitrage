@@ -61,9 +61,9 @@ async function main() {
         .action(recognitionToken);
 
     program
-        .command('uniswap <address> [save]')
+        .command('uniswap <type> <address> [save]')
         .description("analizing uniswap info")
-        .action(async (address, save) => {
+        .action(async (type, address, save) => {
             let tokens = await loadTokensAddrKey(sql);
             let ctt = new web3.eth.Contract(cc.exchange.uniswap.pair.abi, address);
             let token0 = (await ctt.methods.token0().call({from: acc.address})).toLowerCase();
@@ -84,7 +84,7 @@ async function main() {
             console.log(token0, token1, `${tokens[token0].name}/${tokens[token1].name}`);
 
             if (save) {
-                let [err, ok] = await updateQuote("uniswap", `${tokens[token0].name}/${tokens[token1].name}`, "uniswap", address, 0.003);
+                let [err, ok] = await updateQuote(type, `${tokens[token0].name}/${tokens[token1].name}`, "uniswap", address, 0.003);
                 if (err) {
                     console.error(`update token info error: ${err.message || ""}`);
                 }
