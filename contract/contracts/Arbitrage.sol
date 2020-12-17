@@ -113,6 +113,15 @@ contract Arbitrage is Withdrawable {
         return string(bstr);
     }
 
+    function withdrawN(address _assetAddress, uint amount) public onlyOwner {
+        if (_assetAddress == ETHER) {
+            msg.sender.transfer(amount);
+        } else {
+            ERC20(_assetAddress).safeTransfer(msg.sender, amount);
+        }
+        emit LogWithdraw(msg.sender, _assetAddress, amount);
+    }
+
 }
 
 //contract Withdrawable is Ownable {
