@@ -65,6 +65,7 @@ class Prices {
 
 let gPrices = new Prices();
 let gJobs = [];
+let gGasPrice = 0;
 
 io.on('connection', socket => {
     console.log('connected');
@@ -78,9 +79,13 @@ io.on('connection', socket => {
     socket.on('get_latest_block', async () => {
         socket.emit('new_block', gBlock);
     });
+    socket.on('gasPrice', async (gasPrice) => {
+        gGasPrice = gasPrice;
+    });
 
     /* 获取上报的 */
-    socket.on('collected_v3', async (data) => {
+    socket.on('collected_v3', async (/* [{protocol, exchange, quoteA, quoteB, price, height}] */data) => {
+
         // console.log('~', data, typeof data);
         let timestamp = new dayjs().unix();
         for (let i = 0; i < data.length; i++) {
@@ -89,11 +94,7 @@ io.on('connection', socket => {
             // console.log('~', d, typeof d);
 
             //额外
-            // if (d.protocol == 'cefi') {
             d.timestamp = timestamp;
-            // }
-            // d.nowHeight = gBlock.height;
-            // d.expired = false;
         }
         gPrices.add(data);
 
@@ -115,14 +116,11 @@ io.on('connection', socket => {
                 }
                 blockHeight = p.height;
                 //对比差价
-                let n = 0.02;
+                let n = 0.015;
                 if (Math.abs(p.price / pair.price - 1) < n) {
                     continue;
                 }
                 //大于套利阈值
-                // console.log(`出现机会: `, p, pair);
-                //TODO 生成uuidV4 记录到数据库、发送全局通知、生成任务（避免同币种任务生成）
-
                 /*
                     step 生成分三种情况。
                     eth在前
@@ -277,10 +275,10 @@ async function jobConsumer() {
                 return false;
             }
             // 方案1 过滤相反的quote
-            if(job.step[0].protocol == j.step[0].protocol
+            if (job.step[0].protocol == j.step[0].protocol
                 && job.step[0].exchange == j.step[0].exchange
                 && job.step[0].quoteA == j.step[0].quoteB
-                && job.step[0].quoteB == j.step[0].quoteA ){
+                && job.step[0].quoteB == j.step[0].quoteA) {
                 return true;
             }
             //方案2

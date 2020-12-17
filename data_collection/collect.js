@@ -40,6 +40,19 @@ async function loadTokens(sql) {
     return ret;
 }
 
+async function gasPriceMonitor(socket) {
+    while (true) {
+        try {
+            let gasPrice = await web3.eth.getGasPrice();
+            socket.emit('gasPrice', gasPrice);
+            console.log('gasPrice', gasPrice);
+        } catch (e) {
+            console.error(`gasPrice error:`, e);
+        }
+        await common.sleep(5000);
+    }
+}
+
 async function defiCrawler(quote, socket) {
     let blockHeight = 0;
     let blockHash = "";
@@ -223,7 +236,7 @@ async function updatePriceHistoryBatch(priceList) {
 
 async function main() {
     let tokens = await loadTokens(sql);
-    gTokens = tokens
+    gTokens = tokens;
 
     //init socket
     let socket = ioc('http://localhost:2077');
@@ -242,7 +255,7 @@ async function main() {
     //cefi 轮询或socket，defi监控出块
     cefiCrawler(cefiQuote, socket);
     defiCrawler(defiQuote, socket);
-
+    gasPriceMonitor(socket);
 }
 
 async function collect(contractAddress, q, tokens, socket, tableName, quoteName, reverse) {
