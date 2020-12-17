@@ -115,7 +115,7 @@ io.on('connection', socket => {
                 }
                 blockHeight = p.height;
                 //对比差价
-                let n = 0.01;
+                let n = 0.02;
                 if (Math.abs(p.price / pair.price - 1) < n) {
                     continue;
                 }
