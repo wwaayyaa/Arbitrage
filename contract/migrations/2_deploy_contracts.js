@@ -1,9 +1,5 @@
-let Flashloan = artifacts.require("Flashloan")
 let Arbitrage = artifacts.require("Arbitrage")
-let BuyToken = artifacts.require("BuyToken")
-let Con1 = artifacts.require("Con1")
 let fs = require('fs');
-// let FlashSwap = artifacts.require("FlashSwap")
 let cc = require('../../ChainConfig');
 
 module.exports = async function (deployer, network) {
@@ -12,7 +8,6 @@ module.exports = async function (deployer, network) {
         let uniswapV2RouterAddress;
         let sushiswapV2RouterAddress;
 
-
         let uniswapV2DAIETHAddress = '0xa478c2975ab1ea89e8196811f51a7b7ade33eb11'
 
         switch(network) {
@@ -20,8 +15,8 @@ module.exports = async function (deployer, network) {
             case "mainnet-fork":
             case "development": // For Ganache mainnet forks
                 lendingPoolAddressesProviderAddress = cc.loan.aave.address;
-                uniswapV2RouterAddress = cc.exchange.univ2.router02.address;
-                sushiswapV2RouterAddress = cc.exchange.sushi.router02.address;
+                uniswapV2RouterAddress = cc.exchange.uniswap.router02.address;
+                sushiswapV2RouterAddress = cc.exchange.sushiswap.router02.address;
 
                 //weth 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2
                 //eth-dai 0xa478c2975ab1ea89e8196811f51a7b7ade33eb11
@@ -39,15 +34,10 @@ module.exports = async function (deployer, network) {
                 throw Error(`Are you deploying to the correct network? (network selected: ${network})`)
         }
 
-        await deployer.deploy(Flashloan, lendingPoolAddressesProviderAddress)
-        await deployer.deploy(Arbitrage, lendingPoolAddressesProviderAddress, uniswapV2RouterAddress, sushiswapV2RouterAddress);
-        // await deployer.deploy(BuyToken, uniswapV2RouterAddress, sushiswapV1RouterAddress)
-        // await deployer.deploy(Con1)
-
+        await deployer.deploy(Arbitrage);
 
         let contractAddresses = {
             Arbitrage: { address : Arbitrage.address, abi: Arbitrage.abi },
-            Flashloan: { address : Flashloan.address, abi: Flashloan.abi }
         };
         fs.writeFileSync('ContractAddresses.json', JSON.stringify(contractAddresses));
 
