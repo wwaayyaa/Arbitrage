@@ -47,7 +47,7 @@ async function gasPriceMonitor(socket) {
         try {
             let gasPrice = await web3.eth.getGasPrice();
             socket.emit('gasPrice', gasPrice);
-            console.log('gasPrice', gasPrice);
+            // console.log('gasPrice', gasPrice);
         } catch (e) {
             console.error(`gasPrice error:`, e);
         }
@@ -389,7 +389,7 @@ async function getBalancerPrice(address,
                 "fee": fee,
             });
             spotPrice = new calcHelper.BalancerUtils().calcSpotPrice(balances[j], weights[j], balances[i], weights[i], fee);
-            c('~~~', spotPrice);
+            // c('~~~', spotPrice);
             priceList.push({
                 "quoteA": quotes[i],
                 "quoteB": quotes[j],

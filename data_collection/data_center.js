@@ -6,6 +6,7 @@
 * */
 require('dotenv').config();
 
+const c = console.log;
 const io = require('socket.io')(2077);
 const dayjs = require('dayjs');
 const struct = require('../common/struct');
@@ -107,7 +108,7 @@ io.on('connection', socket => {
         //根据变动的数据，和已更新的数据做对比。避免全量筛选，减少循环次数。
         for (let i = 0; i < data.length; i++) {
             let p = data[i];
-            if (!p.master) { //反向交易对不参与计算
+            if (!p.master || p.height != gBlock.height) { //反向交易对不参与计算
                 continue;
             }
             let pairs = gPrices.findByQuoteAB(p.quoteA, p.quoteB);
@@ -117,8 +118,9 @@ io.on('connection', socket => {
                     continue;
                 }
                 //对比差价
-                let rate = 0.015;
-                if (Math.abs(p.price / pair.price - 1) < rate) {
+                let rateT = 0.01;
+                let rate = Math.abs(p.price / pair.price - 1);
+                if (rate < rateT) {
                     continue;
                 }
                 //大于套利阈值
@@ -158,23 +160,27 @@ io.on('connection', socket => {
                 } else {
                     jobType = 'triple_move_bricks';
                     //TODO 暂时忽略 三方搬砖套利
+                    continue;
                 }
 
                 //TODO step的解析，考虑滑点，计算最终产出 A。 计算交易手续费B = gas * gasPrice。要求A > B
                 let principals = [1, 2, 3, 5, 8, 10];
-                let principal = 0;
                 let isErr = false;
-                let back = 0;
-                for (let _i = 0; _i < principals.length; i++) {
-                    [err, back] = calcProfit(principals[_i], step);
+                let principal = 0, profit = 0, failProfit = 0;
+                for (let _i = 0; _i < principals.length; _i++) {
+                    let [err, _back] = calcProfit(principals[_i], step);
                     if (err) {
                         console.error(`calcProfit error: `, err);
                         isErr = true;
                         break;
                     }
-                    if (back > principals[_i]) {
+                    let _profit = _back - principals[_i];
+                    if (_profit > profit) {
+                        //如果有利润
                         principal = principals[_i];
+                        profit = _profit;
                     } else {
+                        failProfit = _profit;
                         break;
                     }
                 }
@@ -196,14 +202,15 @@ io.on('connection', socket => {
                     status: status,
                     principal: principal,
                     txFee: 0,
-                    profit: back - principal,
+                    profit: principal > 0 ? profit : failProfit,
                     txHash: "",
                     // timestamp: p.timestamp > pair.timestamp ? p.timestamp : pair.timestamp
                 };
+                // console.log(`job`, job);
 
                 //push & save & execute
                 socket.broadcast.emit('new_arbitrage', job);
-                let [err, ok] = await newArbitrageJob(job.uuid, job.type, job.height, JSON.stringify(job.step), job.quote, job.status, job.principal, job.txFee)
+                let [err, ok] = await newArbitrageJob(job.uuid, job.type, job.height, JSON.stringify(job.step), job.quote, rate, job.status, job.principal, job.txFee, job.profit);
                 if (err) {
                     console.error(`newArbitrageJob error: `, err);
                 }
@@ -263,13 +270,13 @@ function calcProfit(/* int 本金 */principal, /*[]*/steps) {
     return [null, amountOut];
 }
 
-async function newArbitrageJob(uuid, type, height, step, quote, status, principal, txFee) {
+async function newArbitrageJob(uuid, type, height, step, quote, rate, status, principal, txFee, profit) {
     let now = new dayjs();
     try {
-        await sql.query("insert into arbitrage_job (uuid, type, height, step, quote, status, principal, tx_fee, created_at, updated_at) " +
-            "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ",
+        await sql.query("insert into arbitrage_job (uuid, type, height, step, quote, rate, status, principal, tx_fee, profit, created_at, updated_at) " +
+            "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ",
             {
-                replacements: [uuid, type, height, step, quote, status, principal, txFee, now.format("YYYY-MM-DD HH:mm:ss"), now.format("YYYY-MM-DD HH:mm:ss")],
+                replacements: [uuid, type, height, step, quote, rate, status, principal, txFee, profit, now.format("YYYY-MM-DD HH:mm:ss"), now.format("YYYY-MM-DD HH:mm:ss")],
                 type: 'INSERT'
             })
     } catch (e) {
@@ -320,7 +327,7 @@ async function jobConsumer() {
         }
         if (job.height != gBlock.height) {
             console.log(`${job.height} ${gBlock.height}`);
-            await updateArbitrageJob(job.uuid, 31, 0, 0, "");
+            await updateArbitrageJob(job.uuid, 31, 0, job.profit, "");
             continue;
         }
         let found = hj.values().find(j => {
@@ -353,13 +360,13 @@ async function jobConsumer() {
         });
         if (found) {
             //短期执行过
-            await updateArbitrageJob(job.uuid, 32, 0, 0, "");
+            await updateArbitrageJob(job.uuid, 32, 0, job.profit, "");
             continue;
         }
         hj.add(job);
         if (job.principal == 0) {
             //没有执行价值
-            await updateArbitrageJob(job.uuid, 33, 0, 0, "");
+            await updateArbitrageJob(job.uuid, 33, 0, job.profit, "");
             continue;
         }
 
