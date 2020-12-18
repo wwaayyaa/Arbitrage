@@ -4,6 +4,8 @@ let struct = require('../common/struct');
 let fs = require('fs');
 let BN = require('bignumber.js');
 let dayjs = require('dayjs');
+/* 这个库和合约不同，使用币的个数计算，例如 3eth,10btc,0.003fee 这种 */
+const BalancerUtils = require('./calc_comparisons.js');
 
 let Web3 = require('web3');
 let web3;
@@ -58,9 +60,10 @@ async function defiCrawler(quote, socket) {
     let blockHash = "";
 
     let doIt = async function (q, blockHeight, socket) {
-        let [err, priceList] = await getDeFiPrice(q.protocol, q.exchange, q.name, q.contract_address);
+        let [err, priceList] = await getDeFiPrice(q.protocol, q.exchange, q.name, q.contract_address, q.args, q.fee);
         if (err) {
             console.error(`defiCrawler error: ${q.protocol} ${q.exchange} ${q.name} ${err.message || ""}`);
+            return;
         }
         let now = new dayjs();
         let minute = now.format("YYYYMMDDHHmm");
@@ -72,10 +75,7 @@ async function defiCrawler(quote, socket) {
             return p;
         });
 
-        let SocketCollectedPriceInfoList = priceList.map(p => {
-            return new struct.SocketCollectedPriceInfo(p.protocol, p.exchange, p.quoteA, p.quoteB, p.price, blockHeight);
-        });
-        socket.emit('collected_v3', SocketCollectedPriceInfoList);
+        socket.emit('collected_v3', priceList);
 
         [err, ok] = await updatePriceNowBatch(priceList);
         if (err) {
@@ -138,10 +138,7 @@ async function cefiCrawler(quote, socket) {
                 console.error(`updatePriceHistory error: ${q.exchange} ${q.name} ${err.message || ""}`)
                 return;
             }
-            let SocketCollectedPriceInfoList = priceList.map(p => {
-                return new struct.SocketCollectedPriceInfo(p.protocol, p.exchange, p.quoteA, p.quoteB, p.price);
-            });
-            socket.emit('collected_v3', SocketCollectedPriceInfoList);
+            socket.emit('collected_v3', priceList);
 
         });
         await common.sleep(100);
@@ -374,13 +371,13 @@ async function getCefiPrice(exchangeName, quoteA, quoteB) {
     }
 }
 
-async function getDeFiPrice(protocol, exchange, quote, address) {
+async function getDeFiPrice(protocol, exchange, quote, address, args, fee) {
     let err = null;
     let ret = [];
     if (protocol == 'uniswap') {
         [err, ret] = await getUniswapPrice(address, cc.exchange.uniswap.pair.abi, ...quote.split('/'), gTokens)
     } else if (protocol == 'balancer') {
-        [err, ret] = await getBalancerPrice(address, cc.exchange.balancer.abi, quote.split('/'), gTokens);
+        [err, ret] = await getBalancerPrice(address, cc.exchange.balancer.abi, quote.split('/'), args.split('/'), fee, gTokens);
     } else {
         return [new Error(`unsupported protocol: ${protocol}`)]
     }
@@ -411,46 +408,104 @@ async function getUniswapPrice(address, abi, quoteA, quoteB, tokens) {
     let price10 = amount0.div(amount1).toFixed(8);
 
     return [null, [
-        {"quoteA": quoteA, "quoteB": quoteB, "price": price01},
-        {"quoteA": quoteB, "quoteB": quoteA, "price": price10}
+        {
+            "quoteA": quoteA,
+            "quoteB": quoteB,
+            "price": price01,
+            "master": quoteA < quoteB,
+            "balanceA": reserve0,
+            "balanceB": reserve1
+        },
+        {
+            "quoteA": quoteB,
+            "quoteB": quoteA,
+            "price": price10,
+            "master": quoteB < quoteA,
+            "balanceA": reserve1,
+            "balanceB": reserve0
+        }
     ]];
 }
 
 //balancer 可能是N个token，需要动态计算
 async function getBalancerPrice(address,
                                 abi,
-                                /*该合约对应的token顺序,[usdt, usdc, ...]*/ quotes,
-                                // /*和quotes相对应*/ weights,
-                                tokens) {
+                                /*[] 该合约对应的token顺序, [usdt, usdc, ...]*/ quotes,
+                                /*[integer] 币种对应了的宽度 */ weights,
+                                fee,
+                                tokens,
+) {
+    //方案一 1获取a的balance
+    //方案一 2获取b的balance，然后根据公式计算出spotPrice
+    //方案二，直接调用 getSpotPrice 获取两两交易对的价格 （采用方案二把，io少一次（虽然合约内也会耗时），暂时也不需要balance数据。）
+    //2020-12-18 现在需要更多的数据来计算出滑点
     let ctt = new web3.eth.Contract(abi, address);
+    //先获取所有的余额
+    let balances = [];
+    try {
+        for (let i = 0; i < quotes.length; i++) {
+            let balance = await ctt.methods.getBalance(tokens[quotes[i]].address).call();
+            balances.push(new BN(balance).div(new BN(10).pow(tokens[quotes[i]].decimal)).toFixed(tokens[quotes[i]].decimal));
+        }
+    } catch (e) {
+        e.message = `get balancer error: ${e.message}`;
+        return [e]
+    }
+
     let priceList = [];
+    c(balances);
     for (let i = 0; i < quotes.length - 1; i++) {
-        //方案一 1获取a的balance
         for (let j = i + 1; j < quotes.length; j++) {
-            //方案一 2获取b的balance，然后工具公式计算出spotPrice
-            //方案二，直接调用 getSpotPrice 获取两两交易对的价格 （采用方案二把，io少一次（虽然合约内也会耗时），暂时也不需要balance数据。）
-            let spotPrice = 0;
-            try {
-                //getSpotPrice 得到的和我们的系统规范是反的。他们的算法 in USDC/out ETH = 546.554581 。所以放到quoteA、B的时候反过来放。
-                // decimal  usdc|6 - eth|18 = -12, 所以divisor是10^-12。返回的price是eth/usdc的546554581,先缩小18位（BONE），再放大12位。
-                spotPrice = await ctt.methods.getSpotPrice(tokens[quotes[i]].address, tokens[quotes[j]].address).call({from: acc.address});
-                //需要考虑两个token的decimal的差，同时还要考虑BONE（10**18）单位是wei
-                let divisor = new BN(Math.pow(10, tokens[quotes[i]].decimal - tokens[quotes[j]].decimal));
-                let balancerBONE = new BN(10).pow(18);
-                priceList.push({
-                    "quoteA": quotes[j],
-                    "quoteB": quotes[i],
-                    "price": new BN(spotPrice).div(divisor).div(balancerBONE).toFixed(8)
-                });
-                spotPrice = await ctt.methods.getSpotPrice(tokens[quotes[j]].address, tokens[quotes[i]].address).call({from: acc.address});
-                priceList.push({
-                    "quoteA": quotes[i],
-                    "quoteB": quotes[j],
-                    "price": new BN(spotPrice).times(divisor).div(balancerBONE).toFixed(8)
-                });
-            } catch (e) {
-                return [e];
-            }
+            c(balances[i], weights[i], balances[j], weights[j], fee);
+            let spotPrice = BalancerUtils.calcSpotPrice(balances[i], weights[i], balances[j], weights[j], fee);
+            c('~~~', spotPrice);
+            priceList.push({
+                "quoteA": quotes[j],
+                "quoteB": quotes[i],
+                "price": new BN(spotPrice).toFixed(8),
+                "master": quotes[j] < quotes[i],
+                "weightA": weights[j],
+                "weightB": weights[i],
+                "balanceA": balances[j],
+                "balanceB": balances[i],
+            });
+            spotPrice = BalancerUtils.calcSpotPrice(balances[j], weights[j], balances[i], weights[i], fee);
+            c('~~~', spotPrice);
+            priceList.push({
+                "quoteA": quotes[i],
+                "quoteB": quotes[j],
+                "price": new BN(spotPrice).toFixed(8),
+                "master": quotes[i] < quotes[j],
+                "weightA": weights[i],
+                "weightB": weights[j],
+                "balanceA": balances[i],
+                "balanceB": balances[j],
+            });
+
+            // let spotPrice = 0;
+            // try {
+            //     //getSpotPrice 得到的和我们的系统规范是反的。他们的算法 in USDC/out ETH = 546.554581 。所以放到quoteA、B的时候反过来放。
+            //     // decimal  usdc|6 - eth|18 = -12, 所以divisor是10^-12。返回的price是eth/usdc的546554581,先缩小18位（BONE），再放大12位。
+            //     spotPrice = await ctt.methods.getSpotPrice(tokens[quotes[i]].address, tokens[quotes[j]].address).call({from: acc.address});
+            //     //需要考虑两个token的decimal的差，同时还要考虑BONE（10**18）单位是wei
+            //     let divisor = new BN(Math.pow(10, tokens[quotes[i]].decimal - tokens[quotes[j]].decimal));
+            //     let balancerBONE = new BN(10).pow(18);
+            //     priceList.push({
+            //         "quoteA": quotes[j],
+            //         "quoteB": quotes[i],
+            //         "price": new BN(spotPrice).div(divisor).div(balancerBONE).toFixed(8),
+            //         "master": quotes[i] > quotes[j], //必须这样写
+            //     });
+            //     spotPrice = await ctt.methods.getSpotPrice(tokens[quotes[j]].address, tokens[quotes[i]].address).call({from: acc.address});
+            //     priceList.push({
+            //         "quoteA": quotes[i],
+            //         "quoteB": quotes[j],
+            //         "price": new BN(spotPrice).times(divisor).div(balancerBONE).toFixed(8),
+            //         "master": quotes[i] < quotes[j],
+            //     });
+            // } catch (e) {
+            //     return [e];
+            // }
         }
     }
     return [null, priceList];
@@ -471,8 +526,8 @@ async function collectCeFi(exchangeName, quoteName, callback) {
 
         if (callback) {
             await callback(null, [
-                {"quoteA": quoteA, "quoteB": quoteB, "price": price},
-                {"quoteA": quoteB, "quoteB": quoteA, "price": (1 / price).toFixed(8)}
+                {"quoteA": quoteA, "quoteB": quoteB, "price": price, "master": quoteA < quoteB},
+                {"quoteA": quoteB, "quoteB": quoteA, "price": (1 / price).toFixed(8), "master": quoteB < quoteA}
             ]);
         }
 

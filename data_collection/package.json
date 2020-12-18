@@ -13,6 +13,7 @@
     "bignumber.js": "^9.0.0",
     "commander": "^6.2.0",
     "dayjs": "^1.9.3",
+    "decimal.js": "^10.2.1",
     "dotenv": "^8.2.0",
     "lowdb": "^1.0.0",
     "mysql2": "^2.2.5",

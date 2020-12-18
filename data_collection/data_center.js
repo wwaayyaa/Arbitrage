@@ -17,8 +17,6 @@ const sql = new Sequelize(process.env.DB_DATABASE, process.env.DB_USER, process.
     dialect: 'mysql'
 });
 
-let gBlock = {'height': 0, 'hash': ""};
-
 /* 纯数组，会有性能问题，先暂时不考虑。后期应该引入新的结构（引用，内存数据库）提高查询效率 */
 class Prices {
     constructor(prices) {
@@ -63,9 +61,14 @@ class Prices {
     }
 }
 
+let gBlock = {'height': 0, 'hash': ""};
 let gPrices = new Prices();
 let gJobs = [];
 let gGasPrice = 0;
+let gTokens = [];
+let gQuotes = [];
+
+
 
 io.on('connection', socket => {
     console.log('connected');
@@ -83,15 +86,13 @@ io.on('connection', socket => {
         gGasPrice = gasPrice;
     });
 
-    /* 获取上报的 */
-    socket.on('collected_v3', async (/* [{protocol, exchange, quoteA, quoteB, price, height}] */data) => {
-
+    /* 获取上报的价格数据 */
+    socket.on('collected_v3', async (/* [{protocol, exchange, quoteA, quoteB, price, height, master}] */data) => {
         // console.log('~', data, typeof data);
         let timestamp = new dayjs().unix();
         for (let i = 0; i < data.length; i++) {
             let d = data[i];
-            // d.__proto__ = struct.SocketCollectedPriceInfo.prototype;
-            // console.log('~', d, typeof d);
+            console.log('~', d);
 
             //额外
             d.timestamp = timestamp;
@@ -104,20 +105,18 @@ io.on('connection', socket => {
         //根据变动的数据，和已更新的数据做对比。避免全量筛选，减少循环次数。
         for (let i = 0; i < data.length; i++) {
             let p = data[i];
+            if (!p.master) { //反向交易对不参与计算
+                continue;
+            }
             let pairs = gPrices.findByQuoteAB(p.quoteA, p.quoteB);
             for (let j = 0; j < pairs.length; j++) {
                 let pair = pairs[j];
-                if (p.protocol == pair.protocol && p.exchange == pair.exchange) {
+                if ((p.protocol == pair.protocol && p.exchange == pair.exchange) || p.height != pair.height) {
                     continue;
                 }
-                let blockHeight = 0;
-                if (p.height != pair.height) {
-                    continue;
-                }
-                blockHeight = p.height;
                 //对比差价
-                let n = 0.015;
-                if (Math.abs(p.price / pair.price - 1) < n) {
+                let rate = 0.015;
+                if (Math.abs(p.price / pair.price - 1) < rate) {
                     continue;
                 }
                 //大于套利阈值
@@ -159,10 +158,13 @@ io.on('connection', socket => {
                     //TODO 暂时忽略 三方搬砖套利
                 }
 
+                //TODO step的解析，考虑滑点，计算最终产出 A。 计算交易手续费B = gas * gasPrice。要求A > B
+
+
                 let job = {
                     uuid: uuidv4(),
                     type: jobType,
-                    height: blockHeight,
+                    height: p.height,
                     step: step,
                     quote: `${p.quoteA}/${p.quoteB}`,
                     status: status,

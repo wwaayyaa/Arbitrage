@@ -49,7 +49,7 @@ async function main() {
         let decimal = await ctt.methods.decimals().call({from: acc.address});
         console.log(address, symbol, decimal);
         if (save) {
-            let [err, ok] = await updateToken(address, symbol.toLowerCase(), decimal);
+            let [err, ok] = await updateToken(address.toLowerCase(), symbol.toLowerCase(), decimal);
             if (err) {
                 console.error(`update token info error: ${err.message || ""}`);
             }
@@ -64,6 +64,7 @@ async function main() {
         .command('uniswap <type> <address> [save]')
         .description("analizing uniswap info")
         .action(async (type, address, save) => {
+            address = address.toLowerCase();
             let tokens = await loadTokensAddrKey(sql);
             let ctt = new web3.eth.Contract(cc.exchange.uniswap.pair.abi, address);
             let token0 = (await ctt.methods.token0().call({from: acc.address})).toLowerCase();
@@ -99,12 +100,15 @@ async function main() {
             let tokens = await loadTokensAddrKey(sql);
             let ctt = new web3.eth.Contract(cc.exchange.balancer.abi, address);
             let cttTokens = await ctt.methods.getFinalTokens().call({from: acc.address});
+            let weights = [];
             for (let i = 0; i < cttTokens.length; i++) {
                 let cToken = cttTokens[i].toLowerCase();
                 if (!tokens.hasOwnProperty(cToken)) {
                     c(`recognition balancer tokens: ${i} ${cToken}`)
                     await recognitionToken(cToken, save);
                 }
+                let weight = await ctt.methods.getDenormalizedWeight(cToken).call();
+                weights.push(web3.utils.fromWei(weight, 'ether'));
             }
             tokens = await loadTokensAddrKey(sql);
             let tokensName = []
@@ -118,7 +122,7 @@ async function main() {
             console.log(`${tokensName.join('/')}`);
 
             if (save) {
-                let [err, ok] = await updateQuote(/* balancer 的exchange就是合约地址 */address, tokensName.join('/'), "balancer", address, fee);
+                let [err, ok] = await updateQuote(/* balancer 的exchange就是合约地址 */address, tokensName.join('/'), "balancer", address, fee, weights.join('/'));
                 if (err) {
                     console.error(`update token info error: ${err.message || ""}`);
                 }
@@ -145,14 +149,14 @@ async function updateToken(address, name, decimal) {
     return [null, true];
 }
 
-async function updateQuote(exchange, name, protocol, address, fee) {
+async function updateQuote(exchange, name, protocol, address, fee, args) {
     try {
-        await sql.query("insert into quote (exchange, name, protocol, enabled, contract_address, fee, created_at) " +
-            "values (?, ?, ?, ?, ?, ?, ?) " +
+        await sql.query("insert into quote (exchange, name, protocol, enabled, contract_address, fee, args, created_at) " +
+            "values (?, ?, ?, ?, ?, ?, ?, ?) " +
             "on duplicate key update " +
-            "`fee` = values(`fee`) ",
+            "`fee` = values(`fee`), args = values(args) ",
             {
-                replacements: [exchange, name, protocol, 1, address, fee, new dayjs().format("YYYY-MM-DD HH:mm:ss")],
+                replacements: [exchange, name, protocol, 1, address, fee, args || "", new dayjs().format("YYYY-MM-DD HH:mm:ss")],
                 type: 'INSERT'
             })
     } catch (e) {
