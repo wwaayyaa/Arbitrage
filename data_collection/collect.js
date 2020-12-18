@@ -255,86 +255,6 @@ async function main() {
     gasPriceMonitor(socket);
 }
 
-async function collect(contractAddress, q, tokens, socket, tableName, quoteName, reverse) {
-    //需要知道合约地址、abi
-    // let exchangeName = q.exchange;
-    let [token0, token1] = q.name.split('/');
-    if (!tokens.hasOwnProperty(token0) || !tokens.hasOwnProperty(token1)) {
-        console.error(`${token0}-${token1} missing config information `)
-        return;
-    }
-
-    let pairContract = new web3.eth.Contract(cc.exchange.uniswap.pair.abi, contractAddress);
-    let reserves = await pairContract.methods.getReserves().call({from: acc.address});
-
-    let reserve0 = reserves._reserve0;
-    let reserve1 = reserves._reserve1;
-
-    let amount0 = new BN(reserve0).div(new BN(10).pow(tokens[token0].decimal));
-    let amount1 = new BN(reserve1).div(new BN(10).pow(tokens[token1].decimal));
-    let price01 = amount0.div(amount1).toFixed(8);
-    let price10 = amount1.div(amount0).toFixed(8);
-    console.log(price01, price10);
-    return;
-    socket.emit('collected', {
-        exchangeName,
-        quoteName,
-        price: (reverse ? (1 / info['price']).toFixed(8) : info['price'])
-    });
-
-    let now = new dayjs();
-    sql.query("insert into " + tableName + " (minute, price) values (?, ?) on duplicate key update price = values(price);",
-        {
-            replacements: [now.format("YYYYMMDDHHmm"), (reverse ? (1 / info['price']).toFixed(8) : info['price'])],
-            type: 'INSERT'
-        })
-
-    await common.sleep(30000);
-}
-
-async function collectOld(exchangeName, pairName, socket, tableName, quoteName, reverse) {
-    let ex = new Exchange(exchangeName, cc.exchange[exchangeName].router02.address, cc.exchange[exchangeName].router02.abi, web3, acc);
-    ex.setPair(new Pair(pairName, cc.exchange[exchangeName].pair[pairName].address, cc.exchange[exchangeName].pair[pairName].abi));
-    let [name0, name1] = pairName.split('-');
-    while (true) {
-        //不同的swap指标不一样，现在先监控 流动性和价格
-        let info;
-        try {
-            info = await ex.getPriceInfo();
-        } catch (e) {
-            console.log('get price info error.', e.message || "");
-            await common.sleep(4000);
-            continue;
-        }
-        info['name0'] = name0;
-        info['name1'] = name1;
-        info['decimal0'] = cc.token[name0].decimals;
-        info['decimal1'] = cc.token[name1].decimals;
-        let reserve0 = new BN(info['reserve0']);
-        let reserve1 = new BN(info['reserve1']);
-        info['amount0'] = reserve0.div(new BN(10).pow(info['decimal0'])).toFixed(8);
-        info['amount1'] = reserve1.div(new BN(10).pow(info['decimal1'])).toFixed(8);
-        info['price'] = (new BN(info['amount0'])).div(info['amount1']).toFixed(8);
-        // console.log(exchangeName, pairName, info);
-
-        //socketio
-        socket.emit('collected', {
-            exchangeName,
-            quoteName,
-            price: (reverse ? (1 / info['price']).toFixed(8) : info['price'])
-        });
-
-        let now = new dayjs();
-        sql.query("insert into " + tableName + " (minute, price) values (?, ?) on duplicate key update price = values(price);",
-            {
-                replacements: [now.format("YYYYMMDDHHmm"), (reverse ? (1 / info['price']).toFixed(8) : info['price'])],
-                type: 'INSERT'
-            })
-
-        await common.sleep(30000);
-    }
-}
-
 async function getCefiPrice(exchangeName, quoteA, quoteB) {
     let price = -1;
     if (exchangeName == 'huobi') {
@@ -404,8 +324,8 @@ async function getUniswapPrice(address, abi, quoteA, quoteB, tokens) {
 
     let amount0 = new BN(reserve0).div(new BN(10).pow(tokens[quoteA].decimal));
     let amount1 = new BN(reserve1).div(new BN(10).pow(tokens[quoteB].decimal));
-    let price01 = amount1.div(amount0).toFixed(8);
-    let price10 = amount0.div(amount1).toFixed(8);
+    let price01 = amount1.div(amount0).toFixed(10);
+    let price10 = amount0.div(amount1).toFixed(10);
 
     return [null, [
         {
@@ -453,16 +373,13 @@ async function getBalancerPrice(address,
     }
 
     let priceList = [];
-    c(balances);
     for (let i = 0; i < quotes.length - 1; i++) {
         for (let j = i + 1; j < quotes.length; j++) {
-            c(balances[i], weights[i], balances[j], weights[j], fee);
             let spotPrice = BalancerUtils.calcSpotPrice(balances[i], weights[i], balances[j], weights[j], fee);
-            c('~~~', spotPrice);
             priceList.push({
                 "quoteA": quotes[j],
                 "quoteB": quotes[i],
-                "price": new BN(spotPrice).toFixed(8),
+                "price": new BN(spotPrice).toFixed(10),
                 "master": quotes[j] < quotes[i],
                 "weightA": weights[j],
                 "weightB": weights[i],
@@ -474,7 +391,7 @@ async function getBalancerPrice(address,
             priceList.push({
                 "quoteA": quotes[i],
                 "quoteB": quotes[j],
-                "price": new BN(spotPrice).toFixed(8),
+                "price": new BN(spotPrice).toFixed(10),
                 "master": quotes[i] < quotes[j],
                 "weightA": weights[i],
                 "weightB": weights[j],
@@ -527,7 +444,7 @@ async function collectCeFi(exchangeName, quoteName, callback) {
         if (callback) {
             await callback(null, [
                 {"quoteA": quoteA, "quoteB": quoteB, "price": price, "master": quoteA < quoteB},
-                {"quoteA": quoteB, "quoteB": quoteA, "price": (1 / price).toFixed(8), "master": quoteB < quoteA}
+                {"quoteA": quoteB, "quoteB": quoteA, "price": (1 / price).toFixed(10), "master": quoteB < quoteA}
             ]);
         }
 
