@@ -5,7 +5,7 @@ let fs = require('fs');
 let BN = require('bignumber.js');
 let dayjs = require('dayjs');
 /* 这个库和合约不同，使用币的个数计算，例如 3eth,10btc,0.003fee 这种 */
-const BalancerUtils = require('./calc_comparisons.js');
+const calcHelper = require('./calc_comparisons.js');
 
 let Web3 = require('web3');
 let web3;
@@ -326,23 +326,24 @@ async function getUniswapPrice(address, abi, quoteA, quoteB, tokens) {
     let amount1 = new BN(reserve1).div(new BN(10).pow(tokens[quoteB].decimal));
     let price01 = amount1.div(amount0).toFixed(10);
     let price10 = amount0.div(amount1).toFixed(10);
-
     return [null, [
         {
             "quoteA": quoteA,
             "quoteB": quoteB,
             "price": price01,
             "master": quoteA < quoteB,
-            "balanceA": reserve0,
-            "balanceB": reserve1
+            "balanceA": amount0.toFixed(tokens[quoteA].decimal),
+            "balanceB": amount1.toFixed(tokens[quoteB].decimal),
+            "fee": 0.003,
         },
         {
             "quoteA": quoteB,
             "quoteB": quoteA,
             "price": price10,
             "master": quoteB < quoteA,
-            "balanceA": reserve1,
-            "balanceB": reserve0
+            "balanceA": amount1.toFixed(tokens[quoteB].decimal),
+            "balanceB": amount0.toFixed(tokens[quoteA].decimal),
+            "fee": 0.003,
         }
     ]];
 }
@@ -375,7 +376,7 @@ async function getBalancerPrice(address,
     let priceList = [];
     for (let i = 0; i < quotes.length - 1; i++) {
         for (let j = i + 1; j < quotes.length; j++) {
-            let spotPrice = BalancerUtils.calcSpotPrice(balances[i], weights[i], balances[j], weights[j], fee);
+            let spotPrice = new calcHelper.BalancerUtils().calcSpotPrice(balances[i], weights[i], balances[j], weights[j], fee);
             priceList.push({
                 "quoteA": quotes[j],
                 "quoteB": quotes[i],
@@ -385,8 +386,9 @@ async function getBalancerPrice(address,
                 "weightB": weights[i],
                 "balanceA": balances[j],
                 "balanceB": balances[i],
+                "fee": fee,
             });
-            spotPrice = BalancerUtils.calcSpotPrice(balances[j], weights[j], balances[i], weights[i], fee);
+            spotPrice = new calcHelper.BalancerUtils().calcSpotPrice(balances[j], weights[j], balances[i], weights[i], fee);
             c('~~~', spotPrice);
             priceList.push({
                 "quoteA": quotes[i],
@@ -397,6 +399,7 @@ async function getBalancerPrice(address,
                 "weightB": weights[j],
                 "balanceA": balances[i],
                 "balanceB": balances[j],
+                "fee": fee,
             });
 
             // let spotPrice = 0;
@@ -443,8 +446,8 @@ async function collectCeFi(exchangeName, quoteName, callback) {
 
         if (callback) {
             await callback(null, [
-                {"quoteA": quoteA, "quoteB": quoteB, "price": price, "master": quoteA < quoteB},
-                {"quoteA": quoteB, "quoteB": quoteA, "price": (1 / price).toFixed(10), "master": quoteB < quoteA}
+                {"quoteA": quoteA, "quoteB": quoteB, "price": price, "master": quoteA < quoteB, "fee": 0.002},
+                {"quoteA": quoteB, "quoteB": quoteA, "price": (1 / price).toFixed(10), "master": quoteB < quoteA, "fee": 0.002}
             ]);
         }
 

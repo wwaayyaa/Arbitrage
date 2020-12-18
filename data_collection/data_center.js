@@ -16,6 +16,8 @@ const sql = new Sequelize(process.env.DB_DATABASE, process.env.DB_USER, process.
     host: process.env.DB_HOST,
     dialect: 'mysql'
 });
+/* 这个库和合约不同，使用币的个数计算，例如 3eth,10btc,0.003fee 这种 */
+const calcHelper = require('./calc_comparisons.js');
 
 /* 纯数组，会有性能问题，先暂时不考虑。后期应该引入新的结构（引用，内存数据库）提高查询效率 */
 class Prices {
@@ -32,17 +34,17 @@ class Prices {
             let p = prices[i];
             let k = this.getKey(prices[i]);
             //引用，不做覆盖
-            // this.prices[this.getKey(prices[i])] = prices[i];
-            if (!this.prices.hasOwnProperty(k)) {
-                this.prices[k] = {};
-            }
-            this.prices[k].protocol = p.protocol;
-            this.prices[k].exchange = p.exchange;
-            this.prices[k].quoteA = p.quoteA;
-            this.prices[k].quoteB = p.quoteB;
-            this.prices[k].price = p.price;
-            this.prices[k].height = p.height;
-            this.prices[k].timestamp = p.timestamp;
+            this.prices[this.getKey(prices[i])] = prices[i];
+            // if (!this.prices.hasOwnProperty(k)) {
+            //     this.prices[k] = {};
+            // }
+            // this.prices[k].protocol = p.protocol;
+            // this.prices[k].exchange = p.exchange;
+            // this.prices[k].quoteA = p.quoteA;
+            // this.prices[k].quoteB = p.quoteB;
+            // this.prices[k].price = p.price;
+            // this.prices[k].height = p.height;
+            // this.prices[k].timestamp = p.timestamp;
         }
     };
 
@@ -69,7 +71,6 @@ let gTokens = [];
 let gQuotes = [];
 
 
-
 io.on('connection', socket => {
     console.log('connected');
 
@@ -87,14 +88,15 @@ io.on('connection', socket => {
     });
 
     /* 获取上报的价格数据 */
-    socket.on('collected_v3', async (/* [{protocol, exchange, quoteA, quoteB, price, height, master}] */data) => {
+    socket.on('collected_v3', async (
+        /* [{protocol, exchange, quoteA, quoteB, price, height,
+         master, balanceA, balanceB, weightA, weightB}] */data
+    ) => {
         // console.log('~', data, typeof data);
         let timestamp = new dayjs().unix();
         for (let i = 0; i < data.length; i++) {
             let d = data[i];
-            console.log('~', d);
-
-            //额外
+            // console.log('~', d);
             d.timestamp = timestamp;
         }
         gPrices.add(data);
@@ -159,7 +161,31 @@ io.on('connection', socket => {
                 }
 
                 //TODO step的解析，考虑滑点，计算最终产出 A。 计算交易手续费B = gas * gasPrice。要求A > B
+                let principals = [1, 2, 3, 5, 8, 10];
+                let principal = 0;
+                let isErr = false;
+                let back = 0;
+                for (let _i = 0; _i < principals.length; i++) {
+                    [err, back] = calcProfit(principals[_i], step);
+                    if (err) {
+                        console.error(`calcProfit error: `, err);
+                        isErr = true;
+                        break;
+                    }
+                    if (back > principals[_i]) {
+                        principal = principals[_i];
+                    } else {
+                        break;
+                    }
+                }
+                if (isErr) {
+                    continue;
+                }
 
+                //TODO 如果有principal，那么再通过gasPrice计算一下手续费，就能初步估计成本了。
+                // if(principal > 0){
+                //     let fee = new BN(gGasPrice).times(223266).div(new BN(10).pow(18));
+                // }
 
                 let job = {
                     uuid: uuidv4(),
@@ -168,9 +194,9 @@ io.on('connection', socket => {
                     step: step,
                     quote: `${p.quoteA}/${p.quoteB}`,
                     status: status,
-                    principal: 1,
+                    principal: principal,
                     txFee: 0,
-                    profit: 0,
+                    profit: back - principal,
                     txHash: "",
                     // timestamp: p.timestamp > pair.timestamp ? p.timestamp : pair.timestamp
                 };
@@ -192,17 +218,6 @@ io.on('connection', socket => {
         socket.emit('init_price', priceData);
     });
 
-    // socket.emit('init_price', priceData);
-
-    // socket.on('history', (pairName) => {
-    //     console.log('pairName', pairName);
-    //     let history = db.get('history.' + pairName).value()
-    //         .filter(n => {
-    //             return n.timestamp > (Math.round(new Date().getTime() / 1000) - 3600 * 24 * 7)
-    //         });
-    //     socket.emit('historyList', {pairName, history});
-    // });
-
     //如果未来关注的数据多了，使用room特性  join/to/leave
 
     //监听disconnect事件
@@ -210,6 +225,43 @@ io.on('connection', socket => {
         // console.log('disconnect')
     });
 });
+
+function calcProfit(/* int 本金 */principal, /*[]*/steps) {
+    let amountOut = 0;
+    let amountIn = principal;
+    for (let i = 0; i < steps.length; i++) {
+        amountIn = i == 0 ? principal : amountOut;
+        let step = steps[i];
+
+        let tokenIn = step.quoteA;
+        let balanceIn = step.balanceA;
+        let tokenOut = step.quoteB;
+        let balanceOut = step.balanceB;
+        if (step.type == 'buy') {
+            tokenIn = step.quoteB;
+            balanceIn = step.balanceB;
+            tokenOut = step.quoteA;
+            balanceOut = step.balanceA;
+        }
+        if (step.protocol == 'uniswap') {
+            // let amountIn = new BN(principal).times(new BN(10).pow(gTokens[tokenIn].decimal));
+            // balanceIn = new BN(balanceIn).times(new BN(10).pow(gTokens[tokenIn].decimal));
+            // balanceOut = new BN(balanceOut).times(new BN(10).pow(gTokens[tokenOut].decimal));
+            amountOut = new calcHelper.UniswapHelper().getAmountOutDecimal(amountIn, balanceIn, balanceOut);
+        } else if (step.protocol == 'balancer') {
+            let weightIn = step.weightA;
+            let weightOut = step.weightB;
+            if (step.type == 'buy') {
+                weightIn = step.weightB;
+                weightOut = step.weightA;
+            }
+            amountOut = new calcHelper.BalancerUtils().calcOutGivenIn(balanceIn, weightIn, balanceOut, weightOut, amountIn, step.fee);
+        } else {
+            return [new Error("calcProfit unknown protocol: " + step.protocol)];
+        }
+    }
+    return [null, amountOut];
+}
 
 async function newArbitrageJob(uuid, type, height, step, quote, status, principal, txFee) {
     let now = new dayjs();
@@ -300,18 +352,24 @@ async function jobConsumer() {
             return false;
         });
         if (found) {
+            //短期执行过
             await updateArbitrageJob(job.uuid, 32, 0, 0, "");
             continue;
         }
         hj.add(job);
+        if (job.principal == 0) {
+            //没有执行价值
+            await updateArbitrageJob(job.uuid, 33, 0, 0, "");
+            continue;
+        }
 
         if (job.type == "move_bricks") {
             //trigger arbitrage
-            await updateArbitrageJob(job.uuid, 1, 0, 0, "");
+            // await updateArbitrageJob(job.uuid, 1, 0, job.profit, "");
             //TODO 生成交易计算手续费
 
             //TODO 成功之后回写利润和状态
-            await updateArbitrageJob(job.uuid, 2, 123321, 666, "xxxx");
+            await updateArbitrageJob(job.uuid, 2, 0, job.profit, "xxxx");
             console.log(`consumer move_bricks`);
         } else if (job.type == 'triple_move_bricks') {
             console.log(`consumer triple_move_bricks`);
