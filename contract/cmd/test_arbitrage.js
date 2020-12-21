@@ -1,7 +1,7 @@
 // import { ChainId, Token } from '@uniswap/sdk'
 
 let cc = require("../../ChainConfig");
-let ca = require("../ContractAddresses");
+let ca = require("../../ContractAddresses");
 const {program} = require('commander');
 
 (async () => {

@@ -1,7 +1,7 @@
 // import { ChainId, Token } from '@uniswap/sdk'
 
 let cc = require("../../ChainConfig");
-let ca = require("../ContractAddresses");
+let ca = require("../../ContractAddresses");
 
 (async () => {
 
@@ -32,11 +32,11 @@ let ca = require("../ContractAddresses");
     let uniPrice = reserves[0] / reserves[1];
     c("uniswap eth-dai:", uniPrice);
 
-    c('搞10个weth');
-    let warpETHContract = new web3.eth.Contract(cc.wrapETH.abi, cc.wrapETH.address);
-    await warpETHContract.methods.deposit().send({from: acc.address, value: tradeETH, gas: 5000000});
-    c('weth转给套利合约');
-    await weth.methods.transfer(ca.Arbitrage.address, tradeETH).send({from: acc.address});
+    // c('搞10个weth');
+    // let warpETHContract = new web3.eth.Contract(cc.wrapETH.abi, cc.wrapETH.address);
+    // await warpETHContract.methods.deposit().send({from: acc.address, value: tradeETH, gas: 5000000});
+    // c('weth转给套利合约');
+    // await weth.methods.transfer(ca.Arbitrage.address, tradeETH).send({from: acc.address});
 
     c("账户初始余额: ");
     c("eth: " + utils.fromWei(await web3.eth.getBalance(acc.address), 'ether'));
@@ -61,13 +61,14 @@ let ca = require("../ContractAddresses");
         //     )
         //     .send({from: acc.address, gas: 5000000});
 
-        //[{"protocol":"balancer","exchange":"0x8b6e6e7b5b3801fed2cafd4b22b8a16c2f2db21a","quoteA":"weth","quoteB":"dai","price":"641.06543739","height":11469925,"timestamp":1608198888,"type":"sell"},
-        //{"protocol":"uniswap","exchange":"uniswapv2","quoteA":"weth","quoteB":"dai","price":"518.06893887","height":11469925,"timestamp":1608198887,"type":"buy"}]
-        await arbitrage.methods
-            .a2('balancer', "0x8b6e6e7b5b3801fed2cafd4b22b8a16c2f2db21a", cc.token.weth.address, cc.token.dai.address, web3.utils.toWei("1", 'ether'),
+        //[{"quoteA":"dai","quoteB":"weth","price":"0.0015585810","master":true,"weightA":"10","weightB":"40","balanceA":"10721232.761901784193160021","balanceB":"66672.541118559201851292","fee":"0.0025000000","protocol":"balancer","exchange":"0x8b6e6e7b5b3801fed2cafd4b22b8a16c2f2db21a","minute":"202012211055","height":11494063,"timestamp":1608519337,"type":"buy"},
+        //{"quoteA":"dai","quoteB":"weth","price":"0.0015898818","master":true,"balanceA":"62335163.232303627953199648","balanceB":"99105.542949569093454561","fee":0.003,"protocol":"uniswap","exchange":"uniswapv2","minute":"202012211055","height":11494063,"timestamp":1608519336,"type":"sell"}]
+        let x = await arbitrage.methods
+            .a2('balancer', "0x8b6e6e7b5b3801fed2cafd4b22b8a16c2f2db21a", cc.token.weth.address, cc.token.dai.address, web3.utils.toWei("10", 'ether'),
                 'uniswap', cc.exchange.uniswap.router02.address, cc.token.dai.address, cc.token.weth.address, "0"
             )
             .send({from: acc.address, gas: 5000000});
+        c('tx', x);
     } catch (e) {
         c("arbitrage error: ", e);
         // process.exit();

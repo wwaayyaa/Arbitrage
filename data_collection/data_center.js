@@ -6,11 +6,23 @@
 * */
 require('dotenv').config();
 
+let Web3 = require('web3');
+let web3;
+if (process.env.APP_ENV == 'production') {
+    web3 = new Web3(new Web3.providers.HttpProvider("https://mainnet.infura.io/v3/9cc52b7d92aa4107addd8dcf83a8b008"));
+} else {
+    web3 = new Web3('http://0.0.0.0:8545');
+}
+
 const c = console.log;
+const cc = require('../ChainConfig');
+const ca = require("../ContractAddresses");
 const io = require('socket.io')(2077);
 const dayjs = require('dayjs');
+let BN = require('bignumber.js');
 const struct = require('../common/struct');
 const common = require('../common/common');
+const acc = web3.eth.accounts.privateKeyToAccount('0x9679727a20329d53f114382ea91b6f9e1e3e0b622f79a44bd53a5b2fb794171d');
 const {v4: uuidv4} = require('uuid');
 const {Sequelize} = require('sequelize');
 const sql = new Sequelize(process.env.DB_DATABASE, process.env.DB_USER, process.env.DB_PASS, {
@@ -71,6 +83,14 @@ let gGasPrice = 0;
 let gTokens = [];
 let gQuotes = [];
 
+async function loadTokens(sql) {
+    let tokens = await sql.query("SELECT * FROM `token` ;", {type: 'SELECT'});
+    let ret = {};
+    tokens.forEach(i => {
+        ret[i.name] = i;
+    });
+    return ret;
+}
 
 io.on('connection', socket => {
     console.log('connected');
@@ -301,6 +321,7 @@ async function updateArbitrageJob(uuid, status, txFee, profit, txHash) {
 }
 
 async function main() {
+    gTokens = await loadTokens(sql);
     jobConsumer();
 }
 
@@ -317,6 +338,8 @@ async function jobConsumer() {
     historyJob.prototype.values = function () {
         return this.jobs;
     };
+    let underwayTokens = {};
+
     let hj = new historyJob;
 
     while (true) {
@@ -372,12 +395,20 @@ async function jobConsumer() {
 
         if (job.type == "move_bricks") {
             //trigger arbitrage
-            // await updateArbitrageJob(job.uuid, 1, 0, job.profit, "");
-            //TODO 生成交易计算手续费
+            await updateArbitrageJob(job.uuid, 1, 0, job.profit, "");
+            //TODO 解析step，调用web3，回调结果
+            stepExecutor(job, async function (err, tx) {
+                c('stepExecutor');
+                if (err) {
+                    console.error("stepExecutor error", err);
+                    await updateArbitrageJob(job.uuid, -1, 0, job.profit, "xxxx");
+                }
+                let hash = tx.transactionHash || "xxxx";
+                let gasUsed = tx.gasUsed;
+                let fee = tx.hash || 0;
+                await updateArbitrageJob(job.uuid, 2, fee, job.profit, hash);
+            });
 
-            //TODO 成功之后回写利润和状态
-            await updateArbitrageJob(job.uuid, 2, 0, job.profit, "xxxx");
-            console.log(`consumer move_bricks`);
         } else if (job.type == 'triple_move_bricks') {
             console.log(`consumer triple_move_bricks`);
             await updateArbitrageJob(job.uuid, 35, 0, 0, "");
@@ -389,6 +420,44 @@ async function jobConsumer() {
 
         await common.sleep(10);
     }
+}
+
+async function stepExecutor(job, callback) {
+    let args = [];
+    for (let i = 0; i < job.step.length; i++) {
+        let step = job.step[i];
+        let protocol, exchangeAddress, fromToken, toToken, principal;
+        protocol = step.protocol;
+        fromToken = step.type == 'buy' ? step.quoteB : step.quoteA;
+        toToken = step.type == 'buy' ? step.quoteA : step.quoteB;
+        principal = i == 0 ? step.principal : "0";
+
+        if (step.protocol == 'uniswap') {
+            if (step.exchange == 'uniswapv2') {
+                exchangeAddress = cc.exchange.uniswap.router02.address;
+            } else if (step.exchange == 'sushiswap') {
+                exchangeAddress = cc.exchange.sushiswap.router02.address;
+            }
+        } else if (step.protocol == 'balancer') {
+            exchangeAddress = step.exchange;
+        }
+        args.push(protocol, exchangeAddress, gTokens[fromToken].address, gTokens[toToken].address, new BN(job.principal).times(new BN(10).pow(gTokens[fromToken].decimal)).toFixed(0));
+    }
+    let arbitrage = new web3.eth.Contract(ca.Arbitrage.abi, ca.Arbitrage.address)
+    let tx = null;
+    try {
+        console.log(`call a2:`, args);
+        tx = await arbitrage.methods
+            .a2(...args)
+            .send({from: acc.address, gas: 5000000});
+        console.log(`txtx`, tx);
+    } catch (e) {
+        e.message = `send to a2 error: ` + (e.message || "");
+        if (callback) {
+            await callback(e);
+        }
+    }
+    await callback(null, tx);
 }
 
 main();

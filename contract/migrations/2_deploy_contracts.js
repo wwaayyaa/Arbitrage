@@ -39,7 +39,7 @@ module.exports = async function (deployer, network) {
         let contractAddresses = {
             Arbitrage: { address : Arbitrage.address, abi: Arbitrage.abi },
         };
-        fs.writeFileSync('ContractAddresses.json', JSON.stringify(contractAddresses));
+        fs.writeFileSync('../ContractAddresses.json', JSON.stringify(contractAddresses));
 
     } catch (e) {
         console.log(`Error in migration: ${e.message}`)
