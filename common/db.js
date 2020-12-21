@@ -40,10 +40,44 @@ class DB {
         let tokens = await this.getTokens();
         let ret = {};
         tokens.forEach(i => {
-            ret[i.address] = i;
+            ret[i.address.toLowerCase()] = i;
         });
         return ret;
     }
+
+
+    async updateToken(address, name, decimal) {
+        try {
+            await this.sql.query("insert into token (name, `decimal`, address) " +
+                "values (?, ?, ?) " +
+                "on duplicate key update " +
+                "`decimal` = values(`decimal`) ",
+                {
+                    replacements: [name, decimal - 0, address],
+                    type: 'INSERT'
+                })
+        } catch (e) {
+            return [e, false];
+        }
+        return [null, true];
+    }
+
+    async updateQuote(exchange, name, protocol, address, fee, args) {
+        try {
+            await this.sql.query("insert into quote (exchange, name, protocol, enabled, contract_address, fee, args, created_at) " +
+                "values (?, ?, ?, ?, ?, ?, ?, ?) " +
+                "on duplicate key update " +
+                "`fee` = values(`fee`), args = values(args) ",
+                {
+                    replacements: [exchange, name, protocol, 1, address, fee, args || "", new dayjs().format("YYYY-MM-DD HH:mm:ss")],
+                    type: 'INSERT'
+                })
+        } catch (e) {
+            return [e, false];
+        }
+        return [null, true];
+    }
+
 
     async newArbitrageJob(uuid, type, height, step, quote, rate, status, principal, txFee, profit) {
         let now = new dayjs();

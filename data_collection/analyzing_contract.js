@@ -3,9 +3,9 @@ process.on('unhandledRejection', (reason, promise) => {
     // 记录日志、抛出错误、或其他逻辑。
 });
 
-require('dotenv').config();
+const init = require('../common/init').init();
+const db = init.initDB();
 let common = require('../common/common');
-let struct = require('../common/struct');
 let BN = require('bignumber.js');
 let dayjs = require('dayjs');
 
@@ -33,15 +33,6 @@ const {program} = require('commander');
 
 let gTokens = [];
 
-async function loadTokens(sql) {
-    let tokens = await sql.query("SELECT * FROM `token` ;", {type: 'SELECT'});
-    let ret = {};
-    tokens.forEach(i => {
-        ret[i.name] = i;
-    });
-    return ret;
-}
-
 async function main() {
     let recognitionToken = async function (address, save) {
         let ctt = new web3.eth.Contract(cc.token.abi, address);
@@ -49,7 +40,7 @@ async function main() {
         let decimal = await ctt.methods.decimals().call({from: acc.address});
         console.log(address, symbol, decimal);
         if (save) {
-            let [err, ok] = await updateToken(address.toLowerCase(), symbol.toLowerCase(), decimal);
+            let [err, ok] = await db.updateToken(address.toLowerCase(), symbol.toLowerCase(), decimal);
             if (err) {
                 console.error(`update token info error: ${err.message || ""}`);
             }
@@ -65,7 +56,7 @@ async function main() {
         .description("analizing uniswap info")
         .action(async (type, address, save) => {
             address = address.toLowerCase();
-            let tokens = await loadTokensAddrKey(sql);
+            let tokens = await db.getTokensKeyByAddress();
             let ctt = new web3.eth.Contract(cc.exchange.uniswap.pair.abi, address);
             let token0 = (await ctt.methods.token0().call({from: acc.address})).toLowerCase();
             let token1 = (await ctt.methods.token1().call({from: acc.address})).toLowerCase();
@@ -79,13 +70,13 @@ async function main() {
                 c(`recognition ${token1}`)
                 await recognitionToken(token1, save);
             }
-            tokens = await loadTokensAddrKey(sql);
+            tokens = await db.getTokensKeyByAddress();
 
             // let reserves = await ctt.methods.getReserves().call({from: acc.address});
             console.log(token0, token1, `${tokens[token0].name}/${tokens[token1].name}`);
 
             if (save) {
-                let [err, ok] = await updateQuote(type, `${tokens[token0].name}/${tokens[token1].name}`, "uniswap", address, 0.003);
+                let [err, ok] = await db.updateQuote(type, `${tokens[token0].name}/${tokens[token1].name}`, "uniswap", address, 0.003);
                 if (err) {
                     console.error(`update token info error: ${err.message || ""}`);
                 }
@@ -97,7 +88,7 @@ async function main() {
         .command('balancer <address> [save]')
         .description("analizing balancer info")
         .action(async (address, save) => {
-            let tokens = await loadTokensAddrKey(sql);
+            let tokens = await db.getTokensKeyByAddress();
             let ctt = new web3.eth.Contract(cc.exchange.balancer.abi, address);
             let cttTokens = await ctt.methods.getFinalTokens().call({from: acc.address});
             let weights = [];
@@ -110,7 +101,7 @@ async function main() {
                 let weight = await ctt.methods.getDenormalizedWeight(cToken).call();
                 weights.push(web3.utils.fromWei(weight, 'ether'));
             }
-            tokens = await loadTokensAddrKey(sql);
+            tokens = await db.getTokensKeyByAddress();
             let tokensName = []
             for (let i = 0; i < cttTokens.length; i++) {
                 let cToken = cttTokens[i].toLowerCase();
@@ -122,7 +113,7 @@ async function main() {
             console.log(`${tokensName.join('/')}`);
 
             if (save) {
-                let [err, ok] = await updateQuote(/* balancer 的exchange就是合约地址 */address, tokensName.join('/'), "balancer", address, fee, weights.join('/'));
+                let [err, ok] = await db.updateQuote(/* balancer 的exchange就是合约地址 */address, tokensName.join('/'), "balancer", address, fee, weights.join('/'));
                 if (err) {
                     console.error(`update token info error: ${err.message || ""}`);
                 }
@@ -133,45 +124,5 @@ async function main() {
     program.parse(process.argv);
 }
 
-async function updateToken(address, name, decimal) {
-    try {
-        await sql.query("insert into token (name, `decimal`, address) " +
-            "values (?, ?, ?) " +
-            "on duplicate key update " +
-            "`decimal` = values(`decimal`) ",
-            {
-                replacements: [name, decimal - 0, address],
-                type: 'INSERT'
-            })
-    } catch (e) {
-        return [e, false];
-    }
-    return [null, true];
-}
-
-async function updateQuote(exchange, name, protocol, address, fee, args) {
-    try {
-        await sql.query("insert into quote (exchange, name, protocol, enabled, contract_address, fee, args, created_at) " +
-            "values (?, ?, ?, ?, ?, ?, ?, ?) " +
-            "on duplicate key update " +
-            "`fee` = values(`fee`), args = values(args) ",
-            {
-                replacements: [exchange, name, protocol, 1, address, fee, args || "", new dayjs().format("YYYY-MM-DD HH:mm:ss")],
-                type: 'INSERT'
-            })
-    } catch (e) {
-        return [e, false];
-    }
-    return [null, true];
-}
-
-async function loadTokensAddrKey(sql) {
-    let tokens = await sql.query("SELECT * FROM `token` ;", {type: 'SELECT'});
-    let ret = {};
-    tokens.forEach(i => {
-        ret[i.address.toLowerCase()] = i;
-    });
-    return ret;
-}
 
 main();
