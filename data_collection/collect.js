@@ -1,6 +1,7 @@
 // require('dotenv').config();
 const init = require('../common/init').init();
 const db = init.initDB();
+const {web3, acc} = init.initWeb3AndAccount();
 
 let common = require('../common/common');
 let struct = require('../common/struct');
@@ -10,15 +11,6 @@ let dayjs = require('dayjs');
 /* 这个库和合约不同，使用币的个数计算，例如 3eth,10btc,0.003fee 这种 */
 const calcHelper = require('./calc_comparisons.js');
 
-let Web3 = require('web3');
-let web3;
-if (process.env.APP_ENV == 'production') {
-    web3 = new Web3(new Web3.providers.HttpProvider("https://mainnet.infura.io/v3/9cc52b7d92aa4107addd8dcf83a8b008"));
-} else {
-    web3 = new Web3('http://0.0.0.0:8545');
-}
-
-// let web3 = new Web3('http://8.210.15.226:8545');
 let cc = require('../ChainConfig');
 
 const axios = require('axios')
@@ -26,7 +18,7 @@ const axios = require('axios')
 let ioc = require('socket.io-client');
 let c = console.log;
 const dingKey = process.env.DING_KEY;
-const acc = web3.eth.accounts.privateKeyToAccount('0x9679727a20329d53f114382ea91b6f9e1e3e0b622f79a44bd53a5b2fb794171d');
+
 let gTokens = [];
 
 async function gasPriceMonitor(socket) {

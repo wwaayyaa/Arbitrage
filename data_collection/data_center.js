@@ -6,14 +6,7 @@
 * */
 const init = require('../common/init').init();
 const db = init.initDB();
-
-let Web3 = require('web3');
-let web3;
-if (process.env.APP_ENV == 'production') {
-    web3 = new Web3(new Web3.providers.HttpProvider("https://mainnet.infura.io/v3/9cc52b7d92aa4107addd8dcf83a8b008"));
-} else {
-    web3 = new Web3('http://0.0.0.0:8545');
-}
+const {web3, acc} = init.initWeb3AndAccount();
 
 const c = console.log;
 const cc = require('../ChainConfig');
@@ -23,7 +16,6 @@ const dayjs = require('dayjs');
 let BN = require('bignumber.js');
 const struct = require('../common/struct');
 const common = require('../common/common');
-const acc = web3.eth.accounts.privateKeyToAccount('0x9679727a20329d53f114382ea91b6f9e1e3e0b622f79a44bd53a5b2fb794171d');
 const {v4: uuidv4} = require('uuid');
 /* 这个库和合约不同，使用币的个数计算，例如 3eth,10btc,0.003fee 这种 */
 const calcHelper = require('./calc_comparisons.js');
