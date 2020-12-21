@@ -1,4 +1,5 @@
-// import { ChainId, Token } from '@uniswap/sdk'
+const init = require('../../common/init').init();
+const {web3, acc} = init.initWeb3AndAccount();
 
 let cc = require("../../ChainConfig");
 let ca = require("../../ContractAddresses");
@@ -6,15 +7,11 @@ let ca = require("../../ContractAddresses");
 (async () => {
 
     const c = console.log
-    const Web3 = require('web3');
-    let web3 = new Web3('http://0.0.0.0:8545');
 
     let utils = web3.utils
 
     let timestamp = await (await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp
     c(timestamp);
-
-    const acc = web3.eth.accounts.privateKeyToAccount('0x9679727a20329d53f114382ea91b6f9e1e3e0b622f79a44bd53a5b2fb794171d')
 
     //TOKEN
     let weth = new web3.eth.Contract(cc.token.weth.abi, cc.token.weth.address);
