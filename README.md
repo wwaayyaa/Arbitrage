@@ -32,8 +32,14 @@
 
 暂时的想法是，合约提供step数组参数，合约内置支持uniswap、balancer两种交易方式。
 合约内通过step 一步一步的执行计划，完成套利。
-每一个step可能的字段和取值范围
-protocol
+```javascript
+//以下是两步套利的参数，每一步是5个参数，展开成10个参数的函数。
+a2(
+//protocol, exchangeContractAddress, fromToken, toToken, tradeAmount
+'balancer', cc.exchange.balancer['0x7afe74ae3c19f070c109a38c286684256adc656c'].address, cc.token.weth.address, cc.token.dai.address, web3.utils.toWei("2", 'ether'),
+'uniswap', cc.exchange.uniswap.router02.address, cc.token.dai.address, cc.token.weth.address, "0"
+)
+```
 
 
 ## 价格监控 v2
