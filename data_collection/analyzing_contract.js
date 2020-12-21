@@ -1,8 +1,3 @@
-process.on('unhandledRejection', (reason, promise) => {
-    console.log('未处理的拒绝：', promise, '原因：', reason);
-    // 记录日志、抛出错误、或其他逻辑。
-});
-
 const init = require('../common/init').init();
 const db = init.initDB();
 const {web3, acc} = init.initWeb3AndAccount();
@@ -13,13 +8,8 @@ let dayjs = require('dayjs');
 
 let cc = require('../ChainConfig');
 
-const axios = require('axios')
-
 let c = console.log;
 const {program} = require('commander');
-
-
-let gTokens = [];
 
 async function main() {
     let recognitionToken = async function (address, save) {
@@ -111,6 +101,5 @@ async function main() {
 
     program.parse(process.argv);
 }
-
 
 main();

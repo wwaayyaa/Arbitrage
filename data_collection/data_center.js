@@ -14,7 +14,6 @@ const ca = require("../ContractAddresses");
 const io = require('socket.io')(2077);
 const dayjs = require('dayjs');
 let BN = require('bignumber.js');
-const struct = require('../common/struct');
 const common = require('../common/common');
 const {v4: uuidv4} = require('uuid');
 /* 这个库和合约不同，使用币的个数计算，例如 3eth,10btc,0.003fee 这种 */

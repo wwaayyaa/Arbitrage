@@ -4,7 +4,6 @@ const db = init.initDB();
 const {web3, acc} = init.initWeb3AndAccount();
 
 let common = require('../common/common');
-let struct = require('../common/struct');
 let fs = require('fs');
 let BN = require('bignumber.js');
 let dayjs = require('dayjs');
@@ -17,7 +16,6 @@ const axios = require('axios')
 
 let ioc = require('socket.io-client');
 let c = console.log;
-const dingKey = process.env.DING_KEY;
 
 let gTokens = [];
 

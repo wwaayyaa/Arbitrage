@@ -22,7 +22,7 @@ class init {
         } else {
             web3 = new Web3(process.env.WEB3_PROVIDER_ENDPOINT);
         }
-        const acc = web3.eth.accounts.privateKeyToAccount('0x9679727a20329d53f114382ea91b6f9e1e3e0b622f79a44bd53a5b2fb794171d');
+        const acc = web3.eth.accounts.privateKeyToAccount(process.env.ETH_PRIVATE_KEY);
         web3.eth.accounts.wallet.add(acc);
         return {web3, acc}
     }
