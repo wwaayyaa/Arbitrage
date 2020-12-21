@@ -18,8 +18,6 @@ if (process.env.APP_ENV == 'production') {
 // let web3 = new Web3('http://8.210.15.226:8545');
 let cc = require('../ChainConfig');
 
-let Exchange = require('./exchange/exchange');
-let Pair = require('./exchange/pair');
 const axios = require('axios')
 
 let ioc = require('socket.io-client');

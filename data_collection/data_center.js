@@ -82,6 +82,7 @@ let gJobs = [];
 let gGasPrice = 0;
 let gTokens = [];
 let gQuotes = [];
+let gUnderwayTokens = {};
 
 async function loadTokens(sql) {
     let tokens = await sql.query("SELECT * FROM `token` ;", {type: 'SELECT'});
@@ -326,21 +327,20 @@ async function main() {
 }
 
 async function jobConsumer() {
-    let historyJob = function () {
-        this.jobs = [];
-    };
-    historyJob.prototype.add = function (job) {
-        if (this.jobs.length == 10) {
-            this.jobs.shift()
-        }
-        this.jobs.push(job);
-    };
-    historyJob.prototype.values = function () {
-        return this.jobs;
-    };
-    let underwayTokens = {};
-
-    let hj = new historyJob;
+    /* 准备弃用 */
+    // let historyJob = function () {
+    //     this.jobs = [];
+    // };
+    // historyJob.prototype.add = function (job) {
+    //     if (this.jobs.length == 10) {
+    //         this.jobs.shift()
+    //     }
+    //     this.jobs.push(job);
+    // };
+    // historyJob.prototype.values = function () {
+    //     return this.jobs;
+    // };
+    // let hj = new historyJob;
 
     while (true) {
         let job = gJobs.shift();
@@ -353,44 +353,44 @@ async function jobConsumer() {
             await updateArbitrageJob(job.uuid, 31, 0, job.profit, "");
             continue;
         }
-        let found = hj.values().find(j => {
-            if (j.height < job.height) {
-                //过期的，无视
-                return false;
-            }
-            // 方案1 过滤相反的quote
-            if (job.step[0].protocol == j.step[0].protocol
-                && job.step[0].exchange == j.step[0].exchange
-                && job.step[0].quoteA == j.step[0].quoteB
-                && job.step[0].quoteB == j.step[0].quoteA) {
-                return true;
-            }
-            //方案2
-            // let nowTokens = job.quote.split('/');
-            // let hisTokens = j.quote.split('/');
-            // console.log(`nowTokens,hisTokens`, nowTokens, hisTokens);
-            // for (let i = 0; i < nowTokens.length; i++) {
-            //     //这种方法太粗暴，weth只会执行一次，会过滤太多机会
-            //     let found_ = hisTokens.find(hisToken => hisToken == nowTokens[i])
-            //     if (found_) {
-            //         console.log(`found_`);
-            //         return true;
-            //     }
-            // }
 
-            //方案3 todo 每次执行一个记录一个执行中的token（非eth），通过对比历史token，如果有则逃过。
-            return false;
-        });
-        if (found) {
-            //短期执行过
-            await updateArbitrageJob(job.uuid, 32, 0, job.profit, "");
-            continue;
-        }
-        hj.add(job);
+        // let found = hj.values().find(j => {
+        //     if (j.height < job.height) {
+        //         //过期的，无视
+        //         return false;
+        //     }
+        //     // 方案1 过滤相反的quote
+        //     if (job.step[0].protocol == j.step[0].protocol
+        //         && job.step[0].exchange == j.step[0].exchange
+        //         && job.step[0].quoteA == j.step[0].quoteB
+        //         && job.step[0].quoteB == j.step[0].quoteA) {
+        //         return true;
+        //     }
+        //
+        //     //todo 每次执行一个记录一个执行中的token（非eth），通过对比历史token，如果有则逃过。
+        //     return false;
+        // });
+        // if (found) {
+        //     //短期执行过
+        //     await updateArbitrageJob(job.uuid, 32, 0, job.profit, "");
+        //     continue;
+        // }
+        // hj.add(job);
+
         if (job.principal == 0) {
             //没有执行价值
             await updateArbitrageJob(job.uuid, 33, 0, job.profit, "");
             continue;
+        }
+        let quotes = job.quote.split('/');
+        for (const quote of quotes) {
+            if (quote == 'eth' || quote == 'weth') {
+                continue;
+            }
+            if (gUnderwayTokens.hasOwnProperty(quote)) {
+                await updateArbitrageJob(job.uuid, 34, 0, job.profit, "");
+                continue;
+            }
         }
 
         if (job.type == "move_bricks") {
@@ -398,14 +398,23 @@ async function jobConsumer() {
             await updateArbitrageJob(job.uuid, 1, 0, job.profit, "");
             //TODO 解析step，调用web3，回调结果
             stepExecutor(job, async function (err, tx) {
-                c('stepExecutor');
+                for (const q of job.quote.split('/')) {
+                    delete gUnderwayTokens[q];
+                }
                 if (err) {
                     console.error("stepExecutor error", err);
-                    await updateArbitrageJob(job.uuid, -1, 0, job.profit, "xxxx");
+                    await updateArbitrageJob(job.uuid, -1, 0, job.profit, "");
+                    return;
                 }
-                let hash = tx.transactionHash || "xxxx";
+                let hash = tx.transactionHash || "unknown";
                 let gasUsed = tx.gasUsed;
                 let fee = tx.hash || 0;
+                if (Object.keys(tx.events).length == 0) {
+                    console.error("stepExecutor error , no events : ", err);
+                    await updateArbitrageJob(job.uuid, -2, 0, job.profit, hash);
+                    return;
+                }
+
                 await updateArbitrageJob(job.uuid, 2, fee, job.profit, hash);
             });
 
@@ -446,10 +455,10 @@ async function stepExecutor(job, callback) {
     let arbitrage = new web3.eth.Contract(ca.Arbitrage.abi, ca.Arbitrage.address)
     let tx = null;
     try {
-        console.log(`call a2:`, args);
+        console.log(`send a2:`, args);
         tx = await arbitrage.methods
             .a2(...args)
-            .send({from: acc.address, gas: 5000000});
+            .send({from: acc.address, gas: 5000000, gasPrice: new BN(gGasPrice).times("13").div("10").toFixed(0)});
         console.log(`txtx`, tx);
     } catch (e) {
         e.message = `send to a2 error: ` + (e.message || "");
@@ -457,7 +466,9 @@ async function stepExecutor(job, callback) {
             await callback(e);
         }
     }
-    await callback(null, tx);
+    if (callback) {
+        await callback(null, tx);
+    }
 }
 
 main();

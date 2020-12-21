@@ -64,7 +64,8 @@ let ca = require("../../ContractAddresses");
         //[{"quoteA":"dai","quoteB":"weth","price":"0.0015585810","master":true,"weightA":"10","weightB":"40","balanceA":"10721232.761901784193160021","balanceB":"66672.541118559201851292","fee":"0.0025000000","protocol":"balancer","exchange":"0x8b6e6e7b5b3801fed2cafd4b22b8a16c2f2db21a","minute":"202012211055","height":11494063,"timestamp":1608519337,"type":"buy"},
         //{"quoteA":"dai","quoteB":"weth","price":"0.0015898818","master":true,"balanceA":"62335163.232303627953199648","balanceB":"99105.542949569093454561","fee":0.003,"protocol":"uniswap","exchange":"uniswapv2","minute":"202012211055","height":11494063,"timestamp":1608519336,"type":"sell"}]
         let x = await arbitrage.methods
-            .a2('balancer', "0x8b6e6e7b5b3801fed2cafd4b22b8a16c2f2db21a", cc.token.weth.address, cc.token.dai.address, web3.utils.toWei("10", 'ether'),
+            .a2(
+                'balancer', "0x8b6e6e7b5b3801fed2cafd4b22b8a16c2f2db21a", cc.token.weth.address, cc.token.dai.address, web3.utils.toWei("10", 'ether'),
                 'uniswap', cc.exchange.uniswap.router02.address, cc.token.dai.address, cc.token.weth.address, "0"
             )
             .send({from: acc.address, gas: 5000000});

@@ -25,7 +25,7 @@ let ca = require("../../ContractAddresses");
     let sushiPairETHDAI = new web3.eth.Contract(cc.exchange.sushiswap.pair.abi, cc.exchange.sushiswap.pair['dai-eth'].address);
     let arbitrage = new web3.eth.Contract(ca.Arbitrage.abi, ca.Arbitrage.address)
 
-    let tradeETH = web3.utils.toWei("1000", 'ether');
+    let tradeETH = web3.utils.toWei("300", 'ether');
     c('tradeETH', tradeETH);
     //价格
     let reserves = await uniPairETHDAI.methods.getReserves().call({from: acc.address});
