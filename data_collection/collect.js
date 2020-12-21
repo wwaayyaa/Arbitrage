@@ -1,4 +1,7 @@
-require('dotenv').config();
+// require('dotenv').config();
+const init = require('../common/init').init();
+const db = init.initDB();
+
 let common = require('../common/common');
 let struct = require('../common/struct');
 let fs = require('fs');
@@ -22,23 +25,9 @@ const axios = require('axios')
 
 let ioc = require('socket.io-client');
 let c = console.log;
-const {Sequelize} = require('sequelize');
-const sql = new Sequelize(process.env.DB_DATABASE, process.env.DB_USER, process.env.DB_PASS, {
-    host: process.env.DB_HOST,
-    dialect: 'mysql'
-});
 const dingKey = process.env.DING_KEY;
 const acc = web3.eth.accounts.privateKeyToAccount('0x9679727a20329d53f114382ea91b6f9e1e3e0b622f79a44bd53a5b2fb794171d');
 let gTokens = [];
-
-async function loadTokens(sql) {
-    let tokens = await sql.query("SELECT * FROM `token` ;", {type: 'SELECT'});
-    let ret = {};
-    tokens.forEach(i => {
-        ret[i.name] = i;
-    });
-    return ret;
-}
 
 async function gasPriceMonitor(socket) {
     while (true) {
@@ -75,11 +64,11 @@ async function defiCrawler(quote, socket) {
 
         socket.emit('collected_v3', priceList);
 
-        [err, ok] = await updatePriceNowBatch(priceList);
+        [err, ok] = await db.updatePriceNowBatch(priceList);
         if (err) {
             console.error(`updatePriceNowBatch error: ${q.exchange} ${q.name} ${err.message || ""}`)
         }
-        [err, ok] = await updatePriceHistoryBatch(priceList);
+        [err, ok] = await db.updatePriceHistoryBatch(priceList);
         if (err) {
             console.error(`updatePriceHistory error: ${q.exchange} ${q.name} ${err.message || ""}`)
         }
@@ -126,12 +115,12 @@ async function cefiCrawler(quote, socket) {
                 p.height = 0;
                 return p;
             });
-            let [err, ok] = await updatePriceNowBatch(priceList);
+            let [err, ok] = await db.updatePriceNowBatch(priceList);
             if (err) {
                 console.error(`updatePriceNowBatch error: ${q.exchange} ${q.name} ${err.message || ""}`)
                 return;
             }
-            [err, ok] = await updatePriceHistoryBatch(priceList);
+            [err, ok] = await db.updatePriceHistoryBatch(priceList);
             if (err) {
                 console.error(`updatePriceHistory error: ${q.exchange} ${q.name} ${err.message || ""}`)
                 return;
@@ -143,94 +132,10 @@ async function cefiCrawler(quote, socket) {
     }
 }
 
-async function updatePriceNow(protocol, exchange, quoteA, quoteB, price, height) {
-    let now = new dayjs();
-    try {
-        await sql.query("insert into price_now (protocol, exchange, quote_a, quote_b, price, updated_height, updated_at) " +
-            "values (?, ?, ?, ?, ?, ?, ?) " +
-            "on duplicate key update " +
-            "price = values(price),updated_height = values(updated_height),updated_at = values(updated_at) ",
-            {
-                replacements: [protocol, exchange, quoteA, quoteB, price, height || 0, now.format("YYYY-MM-DD HH:mm:ss")],
-                type: 'INSERT'
-            })
-    } catch (e) {
-        return [e, false];
-    }
-    return [null, true];
-}
 
-async function updatePriceNowBatch(priceList) {
-    let now = new dayjs();
-    now = now.format("YYYY-MM-DD HH:mm:ss");
-    let args = [];
-    let values = [];
-    for (let i = 0; i < priceList.length; i++) {
-        let p = priceList[i];
-        args.push(p.protocol, p.exchange, p.quoteA, p.quoteB, p.price, p.height, now);
-        values.push('(?, ?, ?, ?, ?, ?, ?)');
-    }
-    values = values.join(',');
-    try {
-        await sql.query("insert into price_now (protocol, exchange, quote_a, quote_b, price, updated_height, updated_at) " +
-            `values ${values} ` +
-            "on duplicate key update " +
-            "price = values(price),updated_height = values(updated_height),updated_at = values(updated_at) ",
-            {
-                replacements: args,
-                type: 'INSERT'
-            })
-    } catch (e) {
-        return [e, false];
-    }
-    return [null, true];
-}
-
-async function updatePriceHistory(protocol, exchange, minute, quoteA, quoteB, price, height) {
-    let now = new dayjs();
-    try {
-        await sql.query("insert into price_history (protocol, exchange, minute, quote_a, quote_b, price, updated_height, updated_at) " +
-            "values (?, ?, ?, ?, ?, ?, ?, ?) " +
-            "on duplicate key update " +
-            "price = values(price),updated_height = values(updated_height),updated_at = values(updated_at) ",
-            {
-                replacements: [protocol, exchange, minute, quoteA, quoteB, price, height || 0, now.format("YYYY-MM-DD HH:mm:ss")],
-                type: 'INSERT'
-            })
-    } catch (e) {
-        return [e, false];
-    }
-    return [null, true];
-}
-
-async function updatePriceHistoryBatch(priceList) {
-    let now = new dayjs();
-    now = now.format("YYYY-MM-DD HH:mm:ss");
-    let args = [];
-    let values = [];
-    for (let i = 0; i < priceList.length; i++) {
-        let p = priceList[i];
-        args.push(p.protocol, p.exchange, p.minute, p.quoteA, p.quoteB, p.price, p.height, now);
-        values.push('(?, ?, ?, ?, ?, ?, ?, ?)');
-    }
-    values = values.join(',');
-    try {
-        await sql.query("insert into price_history (protocol, exchange, minute, quote_a, quote_b, price, updated_height, updated_at) " +
-            `values ${values} ` +
-            "on duplicate key update " +
-            "price = values(price), updated_height = values(updated_height), updated_at = values(updated_at) ",
-            {
-                replacements: args,
-                type: 'INSERT'
-            })
-    } catch (e) {
-        return [e, false];
-    }
-    return [null, true];
-}
 
 async function main() {
-    let tokens = await loadTokens(sql);
+    let tokens = await db.getTokensKeyByToken();
     gTokens = tokens;
 
     //init socket
@@ -244,7 +149,7 @@ async function main() {
     // collect('0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852', {name:"eth/usdt"}, tokens);
     // return;
 
-    const quote = await sql.query("SELECT * FROM `quote` where enabled = 1;", {type: 'SELECT'});
+    const quote = await db.getQuotes();
     let cefiQuote = quote.filter(v => v.protocol == 'cefi');
     let defiQuote = quote.filter(v => v.protocol != 'cefi');
     //cefi 轮询或socket，defi监控出块
@@ -450,15 +355,6 @@ async function collectCeFi(exchangeName, quoteName, callback) {
         }
 
         await common.sleep(15000);
-    }
-}
-
-
-function createTable(sql, tableName) {
-    try {
-        sql.query("create table " + tableName + " like single_price_minute_tpl");
-    } catch (e) {
-
     }
 }
 

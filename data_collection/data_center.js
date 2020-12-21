@@ -4,7 +4,8 @@
 *   对外提供实时数据查询
 *   主动发现可套利交易对，并生成db任务。
 * */
-require('dotenv').config();
+const init = require('../common/init').init();
+const db = init.initDB();
 
 let Web3 = require('web3');
 let web3;
@@ -24,11 +25,6 @@ const struct = require('../common/struct');
 const common = require('../common/common');
 const acc = web3.eth.accounts.privateKeyToAccount('0x9679727a20329d53f114382ea91b6f9e1e3e0b622f79a44bd53a5b2fb794171d');
 const {v4: uuidv4} = require('uuid');
-const {Sequelize} = require('sequelize');
-const sql = new Sequelize(process.env.DB_DATABASE, process.env.DB_USER, process.env.DB_PASS, {
-    host: process.env.DB_HOST,
-    dialect: 'mysql'
-});
 /* 这个库和合约不同，使用币的个数计算，例如 3eth,10btc,0.003fee 这种 */
 const calcHelper = require('./calc_comparisons.js');
 
@@ -83,15 +79,6 @@ let gGasPrice = 0;
 let gTokens = [];
 let gQuotes = [];
 let gUnderwayTokens = {};
-
-async function loadTokens(sql) {
-    let tokens = await sql.query("SELECT * FROM `token` ;", {type: 'SELECT'});
-    let ret = {};
-    tokens.forEach(i => {
-        ret[i.name] = i;
-    });
-    return ret;
-}
 
 io.on('connection', socket => {
     console.log('connected');
@@ -231,7 +218,7 @@ io.on('connection', socket => {
 
                 //push & save & execute
                 socket.broadcast.emit('new_arbitrage', job);
-                let [err, ok] = await newArbitrageJob(job.uuid, job.type, job.height, JSON.stringify(job.step), job.quote, rate, job.status, job.principal, job.txFee, job.profit);
+                let [err, ok] = await db.newArbitrageJob(job.uuid, job.type, job.height, JSON.stringify(job.step), job.quote, rate, job.status, job.principal, job.txFee, job.profit);
                 if (err) {
                     console.error(`newArbitrageJob error: `, err);
                 }
@@ -291,38 +278,9 @@ function calcProfit(/* int 本金 */principal, /*[]*/steps) {
     return [null, amountOut];
 }
 
-async function newArbitrageJob(uuid, type, height, step, quote, rate, status, principal, txFee, profit) {
-    let now = new dayjs();
-    try {
-        await sql.query("insert into arbitrage_job (uuid, type, height, step, quote, rate, status, principal, tx_fee, profit, created_at, updated_at) " +
-            "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ",
-            {
-                replacements: [uuid, type, height, step, quote, rate, status, principal, txFee, profit, now.format("YYYY-MM-DD HH:mm:ss"), now.format("YYYY-MM-DD HH:mm:ss")],
-                type: 'INSERT'
-            })
-    } catch (e) {
-        return [e, false];
-    }
-    return [null, true];
-}
-
-async function updateArbitrageJob(uuid, status, txFee, profit, txHash) {
-    let now = new dayjs();
-    try {
-        await sql.query("update arbitrage_job set status = ?, tx_fee = ?, profit = ?, tx_hash = ?, updated_at = ?" +
-            " where uuid = ?",
-            {
-                replacements: [status, txFee, profit, txHash, now.format("YYYY-MM-DD HH:mm:ss"), uuid],
-                type: 'UPDATE'
-            })
-    } catch (e) {
-        return [e, false];
-    }
-    return [null, true];
-}
 
 async function main() {
-    gTokens = await loadTokens(sql);
+    gTokens = await db.getTokensKeyByToken();
     jobConsumer();
 }
 
@@ -350,7 +308,7 @@ async function jobConsumer() {
         }
         if (job.height != gBlock.height) {
             console.log(`${job.height} ${gBlock.height}`);
-            await updateArbitrageJob(job.uuid, 31, 0, job.profit, "");
+            await db.updateArbitrageJob(job.uuid, 31, 0, job.profit, "");
             continue;
         }
 
@@ -372,14 +330,14 @@ async function jobConsumer() {
         // });
         // if (found) {
         //     //短期执行过
-        //     await updateArbitrageJob(job.uuid, 32, 0, job.profit, "");
+        //     await db.updateArbitrageJob(job.uuid, 32, 0, job.profit, "");
         //     continue;
         // }
         // hj.add(job);
 
         if (job.principal == 0) {
             //没有执行价值
-            await updateArbitrageJob(job.uuid, 33, 0, job.profit, "");
+            await db.updateArbitrageJob(job.uuid, 33, 0, job.profit, "");
             continue;
         }
         let quotes = job.quote.split('/');
@@ -388,14 +346,14 @@ async function jobConsumer() {
                 continue;
             }
             if (gUnderwayTokens.hasOwnProperty(quote)) {
-                await updateArbitrageJob(job.uuid, 34, 0, job.profit, "");
+                await db.updateArbitrageJob(job.uuid, 34, 0, job.profit, "");
                 continue;
             }
         }
 
         if (job.type == "move_bricks") {
             //trigger arbitrage
-            await updateArbitrageJob(job.uuid, 1, 0, job.profit, "");
+            await db.updateArbitrageJob(job.uuid, 1, 0, job.profit, "");
             //TODO 解析step，调用web3，回调结果
             stepExecutor(job, async function (err, tx) {
                 for (const q of job.quote.split('/')) {
@@ -403,7 +361,7 @@ async function jobConsumer() {
                 }
                 if (err) {
                     console.error("stepExecutor error", err);
-                    await updateArbitrageJob(job.uuid, -1, 0, job.profit, "");
+                    await db.updateArbitrageJob(job.uuid, -1, 0, job.profit, "");
                     return;
                 }
                 let hash = tx.transactionHash || "unknown";
@@ -411,16 +369,16 @@ async function jobConsumer() {
                 let fee = tx.hash || 0;
                 if (Object.keys(tx.events).length == 0) {
                     console.error("stepExecutor error , no events : ", err);
-                    await updateArbitrageJob(job.uuid, -2, 0, job.profit, hash);
+                    await db.updateArbitrageJob(job.uuid, -2, 0, job.profit, hash);
                     return;
                 }
 
-                await updateArbitrageJob(job.uuid, 2, fee, job.profit, hash);
+                await db.updateArbitrageJob(job.uuid, 2, fee, job.profit, hash);
             });
 
         } else if (job.type == 'triple_move_bricks') {
             console.log(`consumer triple_move_bricks`);
-            await updateArbitrageJob(job.uuid, 35, 0, 0, "");
+            await db.updateArbitrageJob(job.uuid, 35, 0, 0, "");
         } else if (job.type == 'triangular_arbitrage') {
             console.log(`consumer triangular_arbitrage`);
         } else {
