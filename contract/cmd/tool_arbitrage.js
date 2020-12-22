@@ -4,14 +4,12 @@ const {web3, acc} = init.initWeb3AndAccount();
 let cc = require("../../ChainConfig");
 let ca = require("../../ContractAddresses");
 const {program} = require('commander');
+const c = console.log;
+let utils = web3.utils;
+const GAS = process.env.APP_ENV == 'production' ? 300000 : 5000000;
 
 (async () => {
-
-    const c = console.log;
-
-    let utils = web3.utils;
-
-    let timestamp = await (await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp
+    let timestamp = await (await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp;
     c(timestamp);
 
     //TOKEN
@@ -32,11 +30,10 @@ const {program} = require('commander');
                 await warpETHContract.methods.deposit().send({
                     from: acc.address,
                     value: web3.utils.toWei(amount, 'ether'),
-                    gas: 5000000
+                    gas: GAS
                 });
             } else if (token = 'eth') {
-                //approve ?
-                // await warpETHContract.methods.deposit().send({from: acc.address, gas: 5000000});
+                await warpETHContract.methods.withdraw(web3.utils.toWei(amount, 'ether')).send({from: acc.address, gas: GAS});
             } else {
                 console.error('unknown token:' + token);
             }
@@ -54,11 +51,9 @@ const {program} = require('commander');
         if (depoistOrWithdraw == 'deposit') {
             await weth.methods.transfer(ca.Arbitrage.address, web3.utils.toWei(amount, 'ether')).send({from: acc.address});
         } else if (depoistOrWithdraw = 'withdraw') {
-            //approve ?
-            // await warpETHContract.methods.deposit().send({from: acc.address, gas: 5000000});
             await arbitrage.methods
                 .withdrawN(cc.token.weth.address, web3.utils.toWei(amount, 'ether'))
-                .send({from: acc.address, gas: 5000000});
+                .send({from: acc.address, gas: GAS});
         } else {
             console.error('unknown depoistOrWithdraw:' + depoistOrWithdraw);
         }

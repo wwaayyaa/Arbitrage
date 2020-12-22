@@ -15,9 +15,20 @@ const io = require('socket.io')(2077);
 const dayjs = require('dayjs');
 let BN = require('bignumber.js');
 const common = require('../common/common');
+const ding = new common.Ding(process.env.DING_KEY);
 const {v4: uuidv4} = require('uuid');
 /* 这个库和合约不同，使用币的个数计算，例如 3eth,10btc,0.003fee 这种 */
 const calcHelper = require('./calc_comparisons.js');
+
+const JOB_STATUS_DOING = 1;
+const JOB_STATUS_DONE = 2;
+const JOB_STATUS_HEIGHT_FALL_BEHIND = 31;
+const JOB_STATUS_UNWORTHY = 32;
+const JOB_STATUS_REPEATED = 33;
+const JOB_STATUS_FAILED = -1;
+const JOB_STATUS_FAILED_NO_EVENTS = -2;
+
+const GAS = 300000;
 
 /* 纯数组，会有性能问题，先暂时不考虑。后期应该引入新的结构（引用，内存数据库）提高查询效率 */
 class Prices {
@@ -62,9 +73,9 @@ class Prices {
         return this.prices;
     }
 }
+let gPrices = new Prices();
 
 let gBlock = {'height': 0, 'hash': ""};
-let gPrices = new Prices();
 let gJobs = [];
 let gGasPrice = 0;
 let gTokens = [];
@@ -84,6 +95,7 @@ io.on('connection', socket => {
         socket.emit('new_block', gBlock);
     });
     socket.on('gasPrice', async (gasPrice) => {
+        //20000000000 -> 20GWei
         gGasPrice = gasPrice;
     });
 
@@ -130,7 +142,6 @@ io.on('connection', socket => {
                     无eth    我们需要知道这种的数量和价差比例，但是先不做，因为套利链条太长了，手续费太高。
                  */
                 let step = [];
-                let status = 0;
                 let jobType = 'move_bricks';
                 if (p.quoteA == 'weth') {
                     let s1, s2;
@@ -162,7 +173,7 @@ io.on('connection', socket => {
                     continue;
                 }
 
-                //TODO step的解析，考虑滑点，计算最终产出 A。 计算交易手续费B = gas * gasPrice。要求A > B
+                //step的解析，考虑滑点，计算最终产出 A。 计算交易手续费B = gas * gasPrice。要求A > B
                 let principals = [1, 2, 3, 5, 8, 10];
                 let isErr = false;
                 let principal = 0, profit = 0, failProfit = 0;
@@ -187,10 +198,12 @@ io.on('connection', socket => {
                     continue;
                 }
 
-                //TODO 如果有principal，那么再通过gasPrice计算一下手续费，就能初步估计成本了。
-                // if(principal > 0){
-                //     let fee = new BN(gGasPrice).times(223266).div(new BN(10).pow(18));
-                // }
+                //如果有principal，那么再通过gasPrice计算一下手续费，就能初步估计成本了。
+                let fee = 0;
+                if(principal > 0){
+                     fee = new BN(gGasPrice).times(203000).div(new BN(10).pow(18));
+                     profit = profit - fee;
+                }
 
                 let job = {
                     uuid: uuidv4(),
@@ -198,14 +211,12 @@ io.on('connection', socket => {
                     height: p.height,
                     step: step,
                     quote: `${p.quoteA}/${p.quoteB}`,
-                    status: status,
+                    status: 0,
                     principal: principal,
-                    txFee: 0,
+                    txFee: fee,
                     profit: principal > 0 ? profit : failProfit,
                     txHash: "",
-                    // timestamp: p.timestamp > pair.timestamp ? p.timestamp : pair.timestamp
                 };
-                // console.log(`job`, job);
 
                 //push & save & execute
                 socket.broadcast.emit('new_arbitrage', job);
@@ -299,7 +310,7 @@ async function jobConsumer() {
         }
         if (job.height != gBlock.height) {
             console.log(`${job.height} ${gBlock.height}`);
-            await db.updateArbitrageJob(job.uuid, 31, 0, job.profit, "");
+            await db.updateArbitrageJob(job.uuid, JOB_STATUS_HEIGHT_FALL_BEHIND, job.txFee, job.profit, "");
             continue;
         }
 
@@ -326,9 +337,9 @@ async function jobConsumer() {
         // }
         // hj.add(job);
 
-        if (job.principal == 0) {
+        if (job.principal == 0 || job.profit <= 0) {
             //没有执行价值
-            await db.updateArbitrageJob(job.uuid, 33, 0, job.profit, "");
+            await db.updateArbitrageJob(job.uuid, JOB_STATUS_UNWORTHY, job.txFee, job.profit, "");
             continue;
         }
         let quotes = job.quote.split('/');
@@ -337,14 +348,14 @@ async function jobConsumer() {
                 continue;
             }
             if (gUnderwayTokens.hasOwnProperty(quote)) {
-                await db.updateArbitrageJob(job.uuid, 34, 0, job.profit, "");
+                await db.updateArbitrageJob(job.uuid, JOB_STATUS_REPEATED, job.txFee, job.profit, "");
                 continue;
             }
         }
 
         if (job.type == "move_bricks") {
             //trigger arbitrage
-            await db.updateArbitrageJob(job.uuid, 1, 0, job.profit, "");
+            await db.updateArbitrageJob(job.uuid, JOB_STATUS_DOING, job.txFee, job.profit, "");
             //TODO 解析step，调用web3，回调结果
             stepExecutor(job, async function (err, tx) {
                 for (const q of job.quote.split('/')) {
@@ -352,19 +363,23 @@ async function jobConsumer() {
                 }
                 if (err) {
                     console.error("stepExecutor error", err);
-                    await db.updateArbitrageJob(job.uuid, -1, 0, job.profit, "");
+                    ding.ding('arbitrage', `stepExecutor error`);
+                    await db.updateArbitrageJob(job.uuid, JOB_STATUS_FAILED, job.txFee, job.profit, "");
+                    process.exit(1);
                     return;
                 }
                 let hash = tx.transactionHash || "unknown";
                 let gasUsed = tx.gasUsed;
-                let fee = tx.hash || 0;
+                let fee = tx.hash || 0; //TODO
                 if (Object.keys(tx.events).length == 0) {
                     console.error("stepExecutor error , no events : ", err);
-                    await db.updateArbitrageJob(job.uuid, -2, 0, job.profit, hash);
+                    ding.ding('arbitrage', `stepExecutor error , no events: ${hash}`);
+                    await db.updateArbitrageJob(job.uuid, JOB_STATUS_FAILED_NO_EVENTS, job.txFee, job.profit, hash);
+                    process.exit(1);
                     return;
                 }
-
-                await db.updateArbitrageJob(job.uuid, 2, fee, job.profit, hash);
+                ding.ding('arbitrage', `${job.uuid} ${hash} ${job.profit}`);
+                await db.updateArbitrageJob(job.uuid, JOB_STATUS_DONE, job.txFee, job.profit, hash);
             });
 
         } else if (job.type == 'triple_move_bricks') {
@@ -405,10 +420,11 @@ async function stepExecutor(job, callback) {
     let tx = null;
     try {
         console.log(`send a2:`, args);
+        c('now gasPrice ', gGasPrice);
         tx = await arbitrage.methods
             .a2(...args)
-            .send({from: acc.address, gas: 5000000, gasPrice: new BN(gGasPrice).times("13").div("10").toFixed(0)});
-        console.log(`txtx`, tx);
+            .send({from: acc.address, gas: GAS, gasPrice: new BN(gGasPrice).times("13").div("10").toFixed(0)});
+        console.log(`txinfo`, tx);
     } catch (e) {
         e.message = `send to a2 error: ` + (e.message || "");
         if (callback) {

@@ -6,9 +6,9 @@ let ca = require("../../ContractAddresses");
 
 (async () => {
 
-    const c = console.log
+    const c = console.log;
 
-    let utils = web3.utils
+    let utils = web3.utils;
 
     let timestamp = await (await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp
     c(timestamp);

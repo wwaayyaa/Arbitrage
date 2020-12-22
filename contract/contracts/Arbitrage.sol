@@ -3,12 +3,11 @@ pragma solidity >=0.4.22 <0.8.0;
 
 import './interfaces/IUniswapV2Router01.sol';
 import './interfaces/IBPool.sol';
-//import './interfaces/IERC20.sol';
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "../utils/Withdrawable.sol";
+import "./utils/Withdrawable.sol";
 
 contract Arbitrage is Withdrawable {
     event StepTest(string n1, string n2, string n3, string n4);
@@ -50,7 +49,6 @@ contract Arbitrage is Withdrawable {
             path.push(addr11);
             path.push(addr12);
             balanceBefore = IERC20(addr12).balanceOf(address(this));
-            //IUniswapV2Router01(ex1).swapExactETHForTokens(0, path, address(this), 3333333333);
             IUniswapV2Router01(ex1).swapExactTokensForTokens(amount1, 0, path, address(this), 3333333333);
             balanceAfter = IERC20(addr12).balanceOf(address(this));
             require(balanceAfter > balanceBefore, "error 1");
@@ -123,98 +121,3 @@ contract Arbitrage is Withdrawable {
     }
 
 }
-
-//contract Withdrawable is Ownable {
-//    using SafeERC20 for ERC20;
-//    address constant ETHER = address(0);
-//
-//    event LogWithdraw(
-//        address indexed _from,
-//        address indexed _assetAddress,
-//        uint amount
-//    );
-//
-//    /**
-//     * @dev Withdraw asset.
-//     * @param _assetAddress Asset to be withdrawn.
-//     */
-//    function withdraw(address _assetAddress) public onlyOwner {
-//        uint assetBalance;
-//        if (_assetAddress == ETHER) {
-//            address self = address(this); // workaround for a possible solidity bug
-//            assetBalance = self.balance;
-//            msg.sender.transfer(assetBalance);
-//        } else {
-//            assetBalance = ERC20(_assetAddress).balanceOf(address(this));
-//            ERC20(_assetAddress).safeTransfer(msg.sender, assetBalance);
-//        }
-//        emit LogWithdraw(msg.sender, _assetAddress, assetBalance);
-//    }
-//}
-//
-//contract Ownable is Context {
-//    address private _owner;
-//
-//    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-//
-//    /**
-//     * @dev Initializes the contract setting the deployer as the initial owner.
-//     */
-//    constructor () internal {
-//        address msgSender = _msgSender();
-//        _owner = msgSender;
-//        emit OwnershipTransferred(address(0), msgSender);
-//    }
-//
-//    /**
-//     * @dev Returns the address of the current owner.
-//     */
-//    function owner() public view returns (address) {
-//        return _owner;
-//    }
-//
-//    /**
-//     * @dev Throws if called by any account other than the owner.
-//     */
-//    modifier onlyOwner() {
-//        require(_owner == _msgSender(), "Ownable: caller is not the owner");
-//        _;
-//    }
-//
-//    /**
-//     * @dev Leaves the contract without owner. It will not be possible to call
-//     * `onlyOwner` functions anymore. Can only be called by the current owner.
-//     *
-//     * NOTE: Renouncing ownership will leave the contract without an owner,
-//     * thereby removing any functionality that is only available to the owner.
-//     */
-//    function renounceOwnership() public virtual onlyOwner {
-//        emit OwnershipTransferred(_owner, address(0));
-//        _owner = address(0);
-//    }
-//
-//    /**
-//     * @dev Transfers ownership of the contract to a new account (`newOwner`).
-//     * Can only be called by the current owner.
-//     */
-//    function transferOwnership(address newOwner) public virtual onlyOwner {
-//        require(newOwner != address(0), "Ownable: new owner is the zero address");
-//        emit OwnershipTransferred(_owner, newOwner);
-//        _owner = newOwner;
-//    }
-//}
-//
-//contract Context {
-//    // Empty internal constructor, to prevent people from mistakenly deploying
-//    // an instance of this contract, which should be used via inheritance.
-//    constructor () internal { }
-//
-//    function _msgSender() internal view virtual returns (address payable) {
-//        return msg.sender;
-//    }
-//
-//    function _msgData() internal view virtual returns (bytes memory) {
-//        this; // silence state mutability warning without generating bytecode - see https://github.com/ethereum/solidity/issues/2691
-//        return msg.data;
-//    }
-//}
