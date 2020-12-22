@@ -1,6 +1,8 @@
 const path = require('path');
 const db = require('./db').DB;
 const Web3 = require('web3');
+const cc = require(path.join(__dirname + '/../ChainConfig'));
+const ca = require(path.join(__dirname + '../ContractAddresses'));
 
 class init {
     constructor() {
@@ -25,6 +27,14 @@ class init {
         const acc = web3.eth.accounts.privateKeyToAccount(process.env.ETH_PRIVATE_KEY);
         web3.eth.accounts.wallet.add(acc);
         return {web3, acc}
+    }
+
+    getArbitrage() {
+        if (process.env.APP_ENV == 'production') {
+            return {address: process.env.CONTRACT_ADDRESS, abi: cc.arbitrage.abi};
+        } else {
+            return {address: ca.Arbitrage.address, abi: ca.Arbitrage.abi};
+        }
     }
 }
 

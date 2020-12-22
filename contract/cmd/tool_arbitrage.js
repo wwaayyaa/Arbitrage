@@ -1,8 +1,9 @@
 const init = require('../../common/init').init();
 const {web3, acc} = init.initWeb3AndAccount();
+const arbitrageInfo = init.getArbitrage();
 
 let cc = require("../../ChainConfig");
-let ca = require("../../ContractAddresses");
+// let ca = require("../../ContractAddresses");
 const {program} = require('commander');
 const c = console.log;
 let utils = web3.utils;
@@ -19,7 +20,7 @@ const GAS = process.env.APP_ENV == 'production' ? 300000 : 5000000;
     let sushiRoute2 = new web3.eth.Contract(cc.exchange.sushiswap.router02.abi, cc.exchange.sushiswap.router02.address)
     let uniPairETHDAI = new web3.eth.Contract(cc.exchange.uniswap.pair.abi, cc.exchange.uniswap.pair['dai-eth'].address);
     let sushiPairETHDAI = new web3.eth.Contract(cc.exchange.sushiswap.pair.abi, cc.exchange.sushiswap.pair['dai-eth'].address);
-    let arbitrage = new web3.eth.Contract(ca.Arbitrage.abi, ca.Arbitrage.address)
+    let arbitrage = new web3.eth.Contract(arbitrageInfo.abi, arbitrageInfo.address)
     let warpETHContract = new web3.eth.Contract(cc.wrapETH.abi, cc.wrapETH.address);
 
     program.version('0.0.1')
@@ -49,7 +50,7 @@ const GAS = process.env.APP_ENV == 'production' ? 300000 : 5000000;
 
     async function depositOrWithdraw(depoistOrWithdraw, amount) {
         if (depoistOrWithdraw == 'deposit') {
-            await weth.methods.transfer(ca.Arbitrage.address, web3.utils.toWei(amount, 'ether')).send({from: acc.address});
+            await weth.methods.transfer(arbitrageInfo.address, web3.utils.toWei(amount, 'ether')).send({from: acc.address});
         } else if (depoistOrWithdraw = 'withdraw') {
             await arbitrage.methods
                 .withdrawN(cc.token.weth.address, web3.utils.toWei(amount, 'ether'))
@@ -76,9 +77,9 @@ const GAS = process.env.APP_ENV == 'production' ? 300000 : 5000000;
             c("dai: " + utils.fromWei(await dai.methods.balanceOf(acc.address).call(), 'ether'));
             c("weth: " + utils.fromWei(await weth.methods.balanceOf(acc.address).call(), 'ether'));
             c("合约初始余额: ");
-            c("eth: " + utils.fromWei(await web3.eth.getBalance(ca.Arbitrage.address), 'ether'));
-            c("dai: " + utils.fromWei(await dai.methods.balanceOf(ca.Arbitrage.address).call(), 'ether'));
-            c("weth: " + utils.fromWei(await weth.methods.balanceOf(ca.Arbitrage.address).call(), 'ether'));
+            c("eth: " + utils.fromWei(await web3.eth.getBalance(arbitrageInfo.address), 'ether'));
+            c("dai: " + utils.fromWei(await dai.methods.balanceOf(arbitrageInfo.address).call(), 'ether'));
+            c("weth: " + utils.fromWei(await weth.methods.balanceOf(arbitrageInfo.address).call(), 'ether'));
         });
     program.parse(process.argv);
 

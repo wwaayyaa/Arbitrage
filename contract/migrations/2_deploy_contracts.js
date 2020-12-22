@@ -4,20 +4,10 @@ let cc = require('../../ChainConfig');
 
 module.exports = async function (deployer, network) {
     try {
-        let lendingPoolAddressesProviderAddress;
-        let uniswapV2RouterAddress;
-        let sushiswapV2RouterAddress;
-
-        let uniswapV2DAIETHAddress = '0xa478c2975ab1ea89e8196811f51a7b7ade33eb11'
-
         switch(network) {
             case "mainnet":
             case "mainnet-fork":
             case "development": // For Ganache mainnet forks
-                lendingPoolAddressesProviderAddress = cc.loan.aave.address;
-                uniswapV2RouterAddress = cc.exchange.uniswap.router02.address;
-                sushiswapV2RouterAddress = cc.exchange.sushiswap.router02.address;
-
                 //weth 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2
                 //eth-dai 0xa478c2975ab1ea89e8196811f51a7b7ade33eb11
                 break
@@ -34,6 +24,7 @@ module.exports = async function (deployer, network) {
                 throw Error(`Are you deploying to the correct network? (network selected: ${network})`)
         }
 
+        // await deployer.deploy(Arbitrage, {overwrite: false});
         await deployer.deploy(Arbitrage);
 
         let contractAddresses = {

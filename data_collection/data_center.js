@@ -7,10 +7,11 @@
 const init = require('../common/init').init();
 const db = init.initDB();
 const {web3, acc} = init.initWeb3AndAccount();
+const arbitrageInfo = init.getArbitrage();
 
 const c = console.log;
 const cc = require('../ChainConfig');
-const ca = require("../ContractAddresses");
+// const ca = require("../ContractAddresses");
 const io = require('socket.io')(2077);
 const dayjs = require('dayjs');
 let BN = require('bignumber.js');
@@ -73,6 +74,7 @@ class Prices {
         return this.prices;
     }
 }
+
 let gPrices = new Prices();
 
 let gBlock = {'height': 0, 'hash': ""};
@@ -200,9 +202,9 @@ io.on('connection', socket => {
 
                 //如果有principal，那么再通过gasPrice计算一下手续费，就能初步估计成本了。
                 let fee = 0;
-                if(principal > 0){
-                     fee = new BN(gGasPrice).times(203000).div(new BN(10).pow(18));
-                     profit = profit - fee;
+                if (principal > 0) {
+                    fee = new BN(gGasPrice).times(203000).div(new BN(10).pow(18));
+                    profit = profit - fee;
                 }
 
                 let job = {
@@ -416,7 +418,8 @@ async function stepExecutor(job, callback) {
         }
         args.push(protocol, exchangeAddress, gTokens[fromToken].address, gTokens[toToken].address, new BN(job.principal).times(new BN(10).pow(gTokens[fromToken].decimal)).toFixed(0));
     }
-    let arbitrage = new web3.eth.Contract(ca.Arbitrage.abi, ca.Arbitrage.address)
+    // let arbitrage = new web3.eth.Contract(ca.Arbitrage.abi, ca.Arbitrage.address);
+    let arbitrage = new web3.eth.Contract(arbitrageInfo.abi, arbitrageInfo.address);
     let tx = null;
     try {
         console.log(`send a2:`, args);

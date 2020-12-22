@@ -17,10 +17,14 @@
  * phrase from a file you've .gitignored so it doesn't accidentally become public.
  *
  */
+const privateKeyProvider = require('truffle-privatekey-provider');
+const path = require('path');
+const init = require(path.join(__dirname + '/../common/init')).init();
+const {web3, acc} = init.initWeb3AndAccount();
+let provider = new privateKeyProvider(process.env.ETH_PRIVATE_KEY, process.env.WEB3_PROVIDER_ENDPOINT);
 
 // const HDWalletProvider = require('@truffle/hdwallet-provider');
-// const infuraKey = "fj4jll3k.....";
-//
+// const HDWalletProvider = require('@truffle/hdwallet-provider');
 // const fs = require('fs');
 // const mnemonic = fs.readFileSync(".secret").toString().trim();
 
@@ -34,7 +38,6 @@ module.exports = {
      *
      * $ truffle test --network <network-name>
      */
-
     networks: {
         // Useful for testing. The `development` name is special - truffle uses it by default
         // if it's defined here and no other network is specified at the command line.
@@ -42,6 +45,13 @@ module.exports = {
         // tab if you use this network and you must also set the `host`, `port` and `network_id`
         // options below to some value.
         //
+        mainnet: {
+            // provider: () => new HDWalletProvider(process.env.ETH_PRIVATE_KEY, process.env.WEB3_PROVIDER_ENDPOINT),
+            provider: provider,
+            network_id: 1,
+            gasPrice: web3.utils.toWei('50', 'gwei'),
+            from: acc.address,
+        },
         development: {
             host: "127.0.0.1",     // Localhost (default: none)
             port: 8545,            // Standard Ethereum port (default: none)
