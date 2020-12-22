@@ -203,7 +203,7 @@ io.on('connection', socket => {
                 //如果有principal，那么再通过gasPrice计算一下手续费，就能初步估计成本了。
                 let fee = 0;
                 if (principal > 0) {
-                    fee = new BN(gGasPrice).times(203000).div(new BN(10).pow(18));
+                    fee = new BN(gGasPrice).times(203000).div(new BN(10).pow(18)).toFixed(18);
                     profit = profit - fee;
                 }
 
@@ -359,13 +359,13 @@ async function jobConsumer() {
             //trigger arbitrage
             await db.updateArbitrageJob(job.uuid, JOB_STATUS_DOING, job.txFee, job.profit, "");
             //TODO 解析step，调用web3，回调结果
-            stepExecutor(job, async function (err, tx) {
+            await stepExecutor(job, async function (err, tx) {
                 for (const q of job.quote.split('/')) {
                     delete gUnderwayTokens[q];
                 }
                 if (err) {
                     console.error("stepExecutor error", err);
-                    ding.ding('arbitrage', `stepExecutor error`);
+                    ding.ding('defi-arbitrage', `stepExecutor error`);
                     await db.updateArbitrageJob(job.uuid, JOB_STATUS_FAILED, job.txFee, job.profit, "");
                     process.exit(1);
                     return;
@@ -375,12 +375,21 @@ async function jobConsumer() {
                 let fee = tx.hash || 0; //TODO
                 if (Object.keys(tx.events).length == 0) {
                     console.error("stepExecutor error , no events : ", err);
-                    ding.ding('arbitrage', `stepExecutor error , no events: ${hash}`);
+                    ding.ding('defi-arbitrage', `stepExecutor error , no events: ${hash}`);
                     await db.updateArbitrageJob(job.uuid, JOB_STATUS_FAILED_NO_EVENTS, job.txFee, job.profit, hash);
                     process.exit(1);
                     return;
                 }
-                ding.ding('arbitrage', `${job.uuid} ${hash} ${job.profit}`);
+                ding.ding('defi-arbitrage',
+                    `
+**uuid:** ${job.uuid}
+ 
+**hash:** ${hash}
+
+**profit:** ${job.profit}
+
+[前去围观](https://etherscan.io/tx/${hash})
+                    `);
                 await db.updateArbitrageJob(job.uuid, JOB_STATUS_DONE, job.txFee, job.profit, hash);
             });
 

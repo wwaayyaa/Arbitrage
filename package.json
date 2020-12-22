@@ -1,0 +1,44 @@
+{
+  "name": "poolinarbitrage",
+  "version": "1.0.0",
+  "description": "在v2版本，实现了uniswap协议和三大交易所的价格抓取。 但是在要引入balancer的时候遇到了问题。balancer可以有无数多的池，并且允许同样的交易对存在。之前的设计无法兼容。 现在重新修改quote表，引入协议信息，代码上根据不同的协议做不同的事情。下面列举已经支持的3个协议区别。",
+  "main": "index.js",
+  "dependencies": {
+    "axios": "^0.21.0",
+    "commander": "^6.2.1",
+    "dayjs": "^1.9.7",
+    "decimal.js": "^10.2.1",
+    "dotenv": "^8.2.0",
+    "lodash.js": "^0.0.1-security",
+    "mysql2": "^2.2.5",
+    "sequelize": "^6.3.5",
+    "truffle-privatekey-provider": "^1.5.0",
+    "uuid": "^8.3.2",
+    "web3": "^1.3.1",
+    "bignumber.js": "^9.0.0",
+    "socket.io": "^2.3.0",
+    "yaml": "^1.10.0",
+    "@uniswap/lib": "^1.1.4",
+    "@uniswap/sdk": "^3.0.3",
+    "@uniswap/v2-core": "^1.0.1"
+  },
+  "devDependencies": {
+    "@openzeppelin/contracts": "^3.3.0",
+    "@truffle/hdwallet-provider": "^1.1.0",
+    "dotenv": "^8.2.0",
+    "truffle": "^5.1.45"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wwaayyaa/PoolinArbitrage.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/wwaayyaa/PoolinArbitrage/issues"
+  },
+  "homepage": "https://github.com/wwaayyaa/PoolinArbitrage#readme"
+}

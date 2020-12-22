@@ -2,7 +2,7 @@ const path = require('path');
 const db = require('./db').DB;
 const Web3 = require('web3');
 const cc = require(path.join(__dirname + '/../ChainConfig'));
-const ca = require(path.join(__dirname + '../ContractAddresses'));
+const ca = require(path.join(__dirname + '/../ContractAddresses'));
 
 class init {
     constructor() {

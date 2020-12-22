@@ -9,7 +9,10 @@ const c = console.log;
 let utils = web3.utils;
 const GAS = process.env.APP_ENV == 'production' ? 300000 : 5000000;
 
+
 (async () => {
+    let gGasPrice = await web3.eth.getGasPrice();
+    c(`gasPrice: ${gGasPrice}`);
     let timestamp = await (await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp;
     c(timestamp);
 
@@ -31,10 +34,15 @@ const GAS = process.env.APP_ENV == 'production' ? 300000 : 5000000;
                 await warpETHContract.methods.deposit().send({
                     from: acc.address,
                     value: web3.utils.toWei(amount, 'ether'),
-                    gas: GAS
+                    gas: GAS,
+                    gasPrice: gGasPrice
                 });
             } else if (token = 'eth') {
-                await warpETHContract.methods.withdraw(web3.utils.toWei(amount, 'ether')).send({from: acc.address, gas: GAS});
+                await warpETHContract.methods.withdraw(web3.utils.toWei(amount, 'ether')).send({
+                    from: acc.address,
+                    gas: GAS,
+                    gasPrice: gGasPrice
+                });
             } else {
                 console.error('unknown token:' + token);
             }
@@ -50,11 +58,18 @@ const GAS = process.env.APP_ENV == 'production' ? 300000 : 5000000;
 
     async function depositOrWithdraw(depoistOrWithdraw, amount) {
         if (depoistOrWithdraw == 'deposit') {
-            await weth.methods.transfer(arbitrageInfo.address, web3.utils.toWei(amount, 'ether')).send({from: acc.address});
+            await weth.methods.transfer(arbitrageInfo.address, web3.utils.toWei(amount, 'ether')).send({
+                from: acc.address,
+                gas: GAS,
+                gasPrice: gGasPrice
+            });
         } else if (depoistOrWithdraw = 'withdraw') {
             await arbitrage.methods
                 .withdrawN(cc.token.weth.address, web3.utils.toWei(amount, 'ether'))
-                .send({from: acc.address, gas: GAS});
+                .send({
+                    from: acc.address, gas: GAS,
+                    gasPrice: gGasPrice
+                });
         } else {
             console.error('unknown depoistOrWithdraw:' + depoistOrWithdraw);
         }

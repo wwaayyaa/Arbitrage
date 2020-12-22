@@ -1,5 +1,6 @@
 const {Sequelize} = require('sequelize');
 const dayjs = require('dayjs');
+const c = console.log;
 
 //暂时将db类和models层放一起
 class DB {
@@ -80,6 +81,7 @@ class DB {
 
 
     async newArbitrageJob(uuid, type, height, step, quote, rate, status, principal, txFee, profit) {
+        c(`newArbitrageJob args:`, uuid, type, height, step, quote, rate, status, principal, txFee, profit);
         let now = new dayjs();
         try {
             await this.sql.query("insert into arbitrage_job (uuid, type, height, step, quote, rate, status, principal, tx_fee, profit, created_at, updated_at) " +
