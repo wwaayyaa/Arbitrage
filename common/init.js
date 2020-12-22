@@ -28,6 +28,9 @@ class init {
         web3.eth.accounts.wallet.add(acc);
         return {web3, acc, Web3}
     }
+    initLocalWeb3() {
+        return new Web3("http://0.0.0.0:8545");
+    }
 
     getArbitrage() {
         if (process.env.APP_ENV == 'production') {

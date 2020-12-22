@@ -7,6 +7,7 @@
 const init = require('../common/init').init();
 const db = init.initDB();
 const {web3, acc, Web3} = init.initWeb3AndAccount();
+const web3Local = init.initLocalWeb3()
 const arbitrageInfo = init.getArbitrage();
 
 const c = console.log;
@@ -429,25 +430,26 @@ async function stepExecutor(job, callback) {
     }
     // let arbitrage = new web3.eth.Contract(ca.Arbitrage.abi, ca.Arbitrage.address);
     let arbitrage = new web3.eth.Contract(arbitrageInfo.abi, arbitrageInfo.address);
+    let arbitrageLocal = new web3Local.eth.Contract(arbitrageInfo.abi, arbitrageInfo.address);
     let tx = null;
     try {
-        console.log(`send a2:`, args);
         let executeGasPrice = Web3.utils.toWei(new BN(gGasPrice).times("1.2").div(Web3.utils.toWei('1', 'gwei')).toFixed(0), 'gwei');
         c(`now gasPrice: ${gGasPrice}, executeGasPrice: ${executeGasPrice}`);
 
-        // let estimateGas = await arbitrage.methods
-        //     .a2(...args)
-        //     .estimateGas({gas: GAS});
-        // c(`estimateGas : ${estimateGas}`);
-        // if (estimateGas == GAS) {
-        //     throw new Error(`gas exceed ${GAS}`);
-        // }
+        let estimateGas = await arbitrageLocal.methods
+            .a2(...args)
+            .estimateGas({gas: GAS});
+        c(`estimateGas : ${estimateGas}`);
+        if (estimateGas == GAS) {
+            throw new Error(`gas exceed ${GAS}`);
+        }
 
         tx = await arbitrage.methods
             .a2(...args)
             .send({from: acc.address, gas: GAS, gasPrice: executeGasPrice});
         console.log(`txinfo`, tx);
     } catch (e) {
+        console.log(`send a2:`, args);
         e.message = `send to a2 error: ` + (e.message || "");
         if (callback) {
             await callback(e);

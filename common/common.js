@@ -15,7 +15,7 @@ exports.Ding = class {
     }
 
     ding = async function (title, text) {
-        this.dingding(this.key, title, text);
+        await this.dingding(this.key, title, text);
     }
 
     dingding = async function (key, title, text) {

@@ -1,7 +1,8 @@
 // require('dotenv').config();
 const init = require('../common/init').init();
 const db = init.initDB();
-const {web3, acc} = init.initWeb3AndAccount();
+const {acc} = init.initWeb3AndAccount();
+const web3 = init.initLocalWeb3();
 
 let common = require('../common/common');
 let fs = require('fs');
