@@ -55,16 +55,35 @@ let ca = require("../../ContractAddresses");
         //{"quoteA":"dai","quoteB":"weth","price":"0.0015898818","master":true,"balanceA":"62335163.232303627953199648","balanceB":"99105.542949569093454561","fee":0.003,"protocol":"uniswap","exchange":"uniswapv2","minute":"202012211055","height":11494063,"timestamp":1608519336,"type":"sell"}]
         let x = await arbitrage.methods
             .a2(
-                'balancer',
-                '0x41284a88d970d3552a26fae680692ed40b34010c',
-                '0x0bc529c00c6401aef6d220be8c6ea1667f6ad93e',
-                '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
-                '2000000000000000000',
+                //ok
+                'balancer', "0x8b6e6e7b5b3801fed2cafd4b22b8a16c2f2db21a", cc.token.weth.address, cc.token.dai.address, web3.utils.toWei("10", 'ether'),
+                'uniswap', cc.exchange.uniswap.router02.address, cc.token.dai.address, cc.token.weth.address, "0"
+            )
+            // .a2(
+            //     //error execution reverted: ERC20: transfer amount exceeds balance
+            //     'balancer',
+            //     '0x41284a88d970d3552a26fae680692ed40b34010c',
+            //     '0x0bc529c00c6401aef6d220be8c6ea1667f6ad93e',
+            //     '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+            //     '2000000000000000000',
+            //     'uniswap',
+            //     '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D',
+            //     '0x0bc529c00c6401aef6d220be8c6ea1667f6ad93e',
+            //     '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+            //     '0'
+            // )
+            .a2(
+                //error execution reverted: TransferHelper: TRANSFER_FROM_FAILED
                 'uniswap',
                 '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D',
                 '0x0bc529c00c6401aef6d220be8c6ea1667f6ad93e',
                 '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
-                '0'
+                '5000000000000000000',
+                'balancer',
+                '0x41284a88d970d3552a26fae680692ed40b34010c',
+                '0x0bc529c00c6401aef6d220be8c6ea1667f6ad93e',
+                '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+                '5000000000000000000'
             )
             .send({from: acc.address, gas: 5000000});
         c('tx', x);

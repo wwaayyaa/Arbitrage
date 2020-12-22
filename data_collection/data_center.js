@@ -204,7 +204,7 @@ io.on('connection', socket => {
                 //如果有principal，那么再通过gasPrice计算一下手续费，就能初步估计成本了。
                 let fee = 0;
                 if (principal > 0) {
-                    fee = new BN(gGasPrice).times("1.2").times(200000).div(new BN(10).pow(18)).toFixed(18);
+                    fee = new BN(gGasPrice).times("1.2").times(300000).div(new BN(10).pow(18)).toFixed(18);
                     profit = profit - fee;
                 }
 
@@ -290,21 +290,6 @@ async function main() {
 }
 
 async function jobConsumer() {
-    /* 准备弃用 */
-    // let historyJob = function () {
-    //     this.jobs = [];
-    // };
-    // historyJob.prototype.add = function (job) {
-    //     if (this.jobs.length == 10) {
-    //         this.jobs.shift()
-    //     }
-    //     this.jobs.push(job);
-    // };
-    // historyJob.prototype.values = function () {
-    //     return this.jobs;
-    // };
-    // let hj = new historyJob;
-
     while (true) {
         let job = gJobs.shift();
         if (typeof job == "undefined") {
@@ -317,30 +302,7 @@ async function jobConsumer() {
             continue;
         }
 
-        // let found = hj.values().find(j => {
-        //     if (j.height < job.height) {
-        //         //过期的，无视
-        //         return false;
-        //     }
-        //     // 方案1 过滤相反的quote
-        //     if (job.step[0].protocol == j.step[0].protocol
-        //         && job.step[0].exchange == j.step[0].exchange
-        //         && job.step[0].quoteA == j.step[0].quoteB
-        //         && job.step[0].quoteB == j.step[0].quoteA) {
-        //         return true;
-        //     }
-        //
-        //     //todo 每次执行一个记录一个执行中的token（非eth），通过对比历史token，如果有则逃过。
-        //     return false;
-        // });
-        // if (found) {
-        //     //短期执行过
-        //     await db.updateArbitrageJob(job.uuid, 32, 0, job.profit, "");
-        //     continue;
-        // }
-        // hj.add(job);
-
-        if (job.principal == 0 || job.profit <= 0) {
+        if (job.principal == 0 || job.profit <= 0.015) {
             //没有执行价值
             await db.updateArbitrageJob(job.uuid, JOB_STATUS_UNWORTHY, job.txFee, job.profit, "");
             continue;
@@ -411,11 +373,7 @@ async function stepExecutor(job, callback) {
     let args = [];
     for (let i = 0; i < job.step.length; i++) {
         let step = job.step[i];
-        let protocol, exchangeAddress, fromToken, toToken, principal;
-        protocol = step.protocol;
-        fromToken = step.type == 'buy' ? step.quoteB : step.quoteA;
-        toToken = step.type == 'buy' ? step.quoteA : step.quoteB;
-        principal = i == 0 ? step.principal : "0";
+        let exchangeAddress, fromToken, toToken;
 
         if (step.protocol == 'uniswap') {
             if (step.exchange == 'uniswapv2') {
@@ -426,23 +384,33 @@ async function stepExecutor(job, callback) {
         } else if (step.protocol == 'balancer') {
             exchangeAddress = step.exchange;
         }
-        args.push(protocol, exchangeAddress, gTokens[fromToken].address, gTokens[toToken].address, new BN(job.principal).times(new BN(10).pow(gTokens[fromToken].decimal)).toFixed(0));
+        fromToken = step.type == 'buy' ? step.quoteB : step.quoteA;
+        toToken = step.type == 'buy' ? step.quoteA : step.quoteB;
+
+        args.push(step.protocol, exchangeAddress, gTokens[fromToken].address, gTokens[toToken].address, i == 0 ? new BN(job.principal).times(new BN(10).pow(gTokens[fromToken].decimal)).toFixed(0) : '0');
     }
-    // let arbitrage = new web3.eth.Contract(ca.Arbitrage.abi, ca.Arbitrage.address);
+    if (args[2] != '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'
+        || args[8] != '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'
+        || args[9] != '0') {
+        console.warn(`warn 顺序问题: ${job}, ${args}, ${gTokens}`);
+        await callback(new Error('args 顺序问题'));
+        return;
+    }
+
     let arbitrage = new web3.eth.Contract(arbitrageInfo.abi, arbitrageInfo.address);
-    let arbitrageLocal = new web3Local.eth.Contract(arbitrageInfo.abi, arbitrageInfo.address);
     let tx = null;
     try {
         let executeGasPrice = Web3.utils.toWei(new BN(gGasPrice).times("1.2").div(Web3.utils.toWei('1', 'gwei')).toFixed(0), 'gwei');
         c(`now gasPrice: ${gGasPrice}, executeGasPrice: ${executeGasPrice}`);
 
-        let estimateGas = await arbitrageLocal.methods
-            .a2(...args)
-            .estimateGas({gas: GAS});
-        c(`estimateGas : ${estimateGas}`);
-        if (estimateGas == GAS) {
-            throw new Error(`gas exceed ${GAS}`);
-        }
+        // let arbitrageLocal = new web3Local.eth.Contract(arbitrageInfo.abi, arbitrageInfo.address);
+        // let estimateGas = await arbitrageLocal.methods
+        //     .a2(...args)
+        //     .estimateGas({gas: GAS});
+        // c(`estimateGas : ${estimateGas}`);
+        // if (estimateGas == GAS) {
+        //     throw new Error(`gas exceed ${GAS}`);
+        // }
 
         tx = await arbitrage.methods
             .a2(...args)
@@ -454,6 +422,7 @@ async function stepExecutor(job, callback) {
         if (callback) {
             await callback(e);
         }
+        return;
     }
     if (callback) {
         await callback(null, tx);
