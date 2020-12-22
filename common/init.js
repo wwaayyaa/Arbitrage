@@ -26,7 +26,7 @@ class init {
         }
         const acc = web3.eth.accounts.privateKeyToAccount(process.env.ETH_PRIVATE_KEY);
         web3.eth.accounts.wallet.add(acc);
-        return {web3, acc}
+        return {web3, acc, Web3}
     }
 
     getArbitrage() {

@@ -196,6 +196,10 @@ class DB {
         }
         return [null, true];
     }
+
+    async deleteOldHistory(){
+
+    }
 }
 
 exports.DB = DB;

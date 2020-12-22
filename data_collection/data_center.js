@@ -6,7 +6,7 @@
 * */
 const init = require('../common/init').init();
 const db = init.initDB();
-const {web3, acc} = init.initWeb3AndAccount();
+const {web3, acc, Web3} = init.initWeb3AndAccount();
 const arbitrageInfo = init.getArbitrage();
 
 const c = console.log;
@@ -29,7 +29,7 @@ const JOB_STATUS_REPEATED = 33;
 const JOB_STATUS_FAILED = -1;
 const JOB_STATUS_FAILED_NO_EVENTS = -2;
 
-const GAS = 300000;
+const GAS = 400000;
 
 /* 纯数组，会有性能问题，先暂时不考虑。后期应该引入新的结构（引用，内存数据库）提高查询效率 */
 class Prices {
@@ -203,7 +203,7 @@ io.on('connection', socket => {
                 //如果有principal，那么再通过gasPrice计算一下手续费，就能初步估计成本了。
                 let fee = 0;
                 if (principal > 0) {
-                    fee = new BN(gGasPrice).times(203000).div(new BN(10).pow(18)).toFixed(18);
+                    fee = new BN(gGasPrice).times("1.2").times(200000).div(new BN(10).pow(18)).toFixed(18);
                     profit = profit - fee;
                 }
 
@@ -365,8 +365,8 @@ async function jobConsumer() {
                 }
                 if (err) {
                     console.error("stepExecutor error", err);
-                    ding.ding('defi-arbitrage', `stepExecutor error`);
                     await db.updateArbitrageJob(job.uuid, JOB_STATUS_FAILED, job.txFee, job.profit, "");
+                    await ding.ding('defi-arbitrage', `stepExecutor error`);
                     process.exit(1);
                     return;
                 }
@@ -375,8 +375,8 @@ async function jobConsumer() {
                 let fee = tx.hash || 0; //TODO
                 if (Object.keys(tx.events).length == 0) {
                     console.error("stepExecutor error , no events : ", err);
-                    ding.ding('defi-arbitrage', `stepExecutor error , no events: ${hash}`);
                     await db.updateArbitrageJob(job.uuid, JOB_STATUS_FAILED_NO_EVENTS, job.txFee, job.profit, hash);
+                    await ding.ding('defi-arbitrage', `stepExecutor error , no events: ${hash}`);
                     process.exit(1);
                     return;
                 }
@@ -432,10 +432,20 @@ async function stepExecutor(job, callback) {
     let tx = null;
     try {
         console.log(`send a2:`, args);
-        c('now gasPrice ', gGasPrice);
+        let executeGasPrice = Web3.utils.toWei(new BN(gGasPrice).times("1.2").div(Web3.utils.toWei('1', 'gwei')).toFixed(0), 'gwei');
+        c(`now gasPrice: ${gGasPrice}, executeGasPrice: ${executeGasPrice}`);
+
+        // let estimateGas = await arbitrage.methods
+        //     .a2(...args)
+        //     .estimateGas({gas: GAS});
+        // c(`estimateGas : ${estimateGas}`);
+        // if (estimateGas == GAS) {
+        //     throw new Error(`gas exceed ${GAS}`);
+        // }
+
         tx = await arbitrage.methods
             .a2(...args)
-            .send({from: acc.address, gas: GAS, gasPrice: new BN(gGasPrice).times("13").div("10").toFixed(0)});
+            .send({from: acc.address, gas: GAS, gasPrice: executeGasPrice});
         console.log(`txinfo`, tx);
     } catch (e) {
         e.message = `send to a2 error: ` + (e.message || "");
