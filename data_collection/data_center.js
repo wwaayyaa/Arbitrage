@@ -123,7 +123,7 @@ async function lookupMoveBricks(
     /* [{protocol, exchange, quoteA, quoteB, price, height,
          master, balanceA, balanceB, weightA, weightB}] */
     data) {
-//根据变动的数据，和已更新的数据做对比。避免全量筛选，减少循环次数。
+    //根据变动的数据，和已更新的数据做对比。避免全量筛选，减少循环次数。
     for (let i = 0; i < data.length; i++) {
         let p = data[i];
         if (!p.master || p.height != gBlock.height) { //反向交易对不参与计算
@@ -207,7 +207,7 @@ async function lookupMoveBricks(
             //如果有principal，那么再通过gasPrice计算一下手续费，就能初步估计成本了。
             let fee = 0;
             if (principal > 0) {
-                fee = new BN(gGasPrice).times("1.2").times(300000).div(new BN(10).pow(18)).toFixed(18);
+                fee = new BN(gGasPrice).times("1.2").times(320000).div(new BN(10).pow(18)).toFixed(18);
                 profit = profit - fee;
             }
 
@@ -293,7 +293,7 @@ async function jobConsumer() {
             continue;
         }
 
-        if (job.principal == 0 || job.profit <= 0.005) {
+        if (job.principal == 0 || job.profit <= 0.02) {
             //没有执行价值
             await db.updateArbitrageJob(job.uuid, JOB_STATUS_UNWORTHY, job.txFee, job.profit, "");
             continue;
@@ -312,15 +312,15 @@ async function jobConsumer() {
         if (job.type == "move_bricks") {
             //trigger arbitrage
             await db.updateArbitrageJob(job.uuid, JOB_STATUS_DOING, job.txFee, job.profit, "");
-            //TODO 解析step，调用web3，回调结果
-            await stepExecutor(job, async function (err, tx) {
+            //解析step，调用web3，回调结果
+            await callArbitrageByJob(job, async function (err, tx) {
                 for (const q of job.quote.split('/')) {
                     delete gUnderwayTokens[q];
                 }
                 if (err) {
-                    console.error("stepExecutor error", err);
+                    console.error("callArbitrageByJob error", err);
                     await db.updateArbitrageJob(job.uuid, JOB_STATUS_FAILED, job.txFee, job.profit, "");
-                    await ding.ding('defi-arbitrage', `stepExecutor error`);
+                    await ding.ding('defi-arbitrage', `callArbitrageByJob error`);
                     process.exit(1);
                     return;
                 }
@@ -328,9 +328,9 @@ async function jobConsumer() {
                 let gasUsed = tx.gasUsed;
                 let fee = tx.hash || 0; //TODO
                 if (Object.keys(tx.events).length == 0) {
-                    console.error("stepExecutor error , no events : ", err);
+                    console.error("callArbitrageByJob error , no events : ", err);
                     await db.updateArbitrageJob(job.uuid, JOB_STATUS_FAILED_NO_EVENTS, job.txFee, job.profit, hash);
-                    await ding.ding('defi-arbitrage', `stepExecutor error , no events: ${hash}`);
+                    await ding.ding('defi-arbitrage', `callArbitrageByJob error , no events: ${hash}`);
                     process.exit(1);
                     return;
                 }
@@ -360,7 +360,7 @@ async function jobConsumer() {
     }
 }
 
-async function stepExecutor(job, callback) {
+async function callArbitrageByJob(job, callback) {
     let args = [];
     for (let i = 0; i < job.step.length; i++) {
         let step = job.step[i];
