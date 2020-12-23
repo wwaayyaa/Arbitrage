@@ -275,15 +275,8 @@ function calcProfit(/* int 本金 */principal, /*[]*/steps) {
 
 async function main() {
     gTokens = await db.getTokensKeyByToken();
-    mem();
+    common.memoryInfoForever(60000);
     jobConsumer();
-}
-
-async function mem(){
-    while (true){
-        common.memoryInfo();
-        await common.sleep(60000);
-    }
 }
 
 async function jobConsumer() {

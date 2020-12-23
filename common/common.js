@@ -38,16 +38,25 @@ exports.Ding = class {
  * heapUsed：堆中目前用到的内存量，判断内存泄漏我们主要以这个字段为准。
  * external： V8 引擎内部的 C++ 对象占用的内存。
  */
+let format2MB = function (bytes) {
+    return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+};
 exports.memoryInfo = function () {
-    const format = function (bytes) {
-        return (bytes / 1024 / 1024).toFixed(2) + ' MB';
-    };
+
     const memoryUsage = process.memoryUsage();
 
     console.log(JSON.stringify({
-        rss: format(memoryUsage.rss),
-        heapTotal: format(memoryUsage.heapTotal),
-        heapUsed: format(memoryUsage.heapUsed),
-        external: format(memoryUsage.external),
+        rss: format2MB(memoryUsage.rss),
+        heapTotal: format2MB(memoryUsage.heapTotal),
+        heapUsed: format2MB(memoryUsage.heapUsed),
+        external: format2MB(memoryUsage.external),
+        datetime: new Date().toJSON()
     }));
 };
+
+exports.memoryInfoForever = async function (ms) {
+    while (true) {
+        this.memoryInfo();
+        await this.sleep(ms);
+    }
+}
