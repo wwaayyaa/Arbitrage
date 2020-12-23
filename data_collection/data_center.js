@@ -60,6 +60,16 @@ class Prices {
         return ret;
     };
 
+    getMaster() {
+        let ret = [];
+        for (let key in this.prices) {
+            if (this.prices[key].master) {
+                ret.push(this.prices[key]);
+            }
+        }
+        return ret;
+    }
+
     prices() {
         return this.prices;
     }
@@ -101,8 +111,8 @@ io.on('connection', socket => {
         // socket.broadcast.emit('new_prices', data);
 
         /* 此处是各种套利模型判断价格是否达到触发值的地方，未来可能要剥离 */
-        await lookupMoveBricks(socket, data);
-
+        // await lookupMoveBricks(socket, data);
+        await lookupTriangular(socket, data);
     });
 
     socket.on('init', data => {
@@ -209,7 +219,11 @@ async function lookupMoveBricks(
             if (principal > 0) {
                 fee = new BN(gGasPrice).times("1.2").times(320000).div(new BN(10).pow(18)).toFixed(18);
                 profit = profit - fee;
+            } else {
+                //不保存完全无法盈利的数据
+                continue;
             }
+
 
             let job = {
                 uuid: uuidv4(),
@@ -233,6 +247,139 @@ async function lookupMoveBricks(
 
             gJobs.push(job);
         }
+    }
+}
+
+/**
+ * 三角套利
+ * 只能在master之间寻找（不然就可能存在AB（master），BC（slave），AC（master）｜AB（master），CB（master），AC（master）的情况，很不好判断。
+ *   如果p 不含weth，则去找匹配的eth交易对，如 yfi/dai，去找weth/dai + weth/yfi
+ *   如果p 含有weth，则匹配任意token（这个匹配量很大，不做开发。被动的通过上面的交易对发现套利）
+ * */
+async function lookupTriangular(
+    socket,
+    /* [{protocol, exchange, quoteA, quoteB, price, height,
+         master, balanceA, balanceB, weightA, weightB}] */
+    data) {
+    //根据变动的数据，和已更新的数据做对比。避免全量筛选，减少循环次数。
+    for (let i = 0; i < data.length; i++) {
+        let p = data[i];
+        if (!p.master || p.height != gBlock.height || common.hasToken('weth', [p.quoteA, p.quoteB])) {
+            continue;
+        }
+        //确保master
+        let pair1 = common.sortTokensAsc(['weth', p.quoteA]);
+        let pair3 = common.sortTokensAsc(['weth', p.quoteB]);
+        let prices1 = gPrices.findByQuoteAB(...pair1).filter(n => n.height == gBlock.height);
+        let prices3 = gPrices.findByQuoteAB(...pair3).filter(n => n.height == gBlock.height);
+        if (prices1.length == 0 || prices3.length == 0) {
+            continue;
+        }
+
+        let rateT = 0.01;
+        for (let price1 of prices1) {
+            for (let price3 of prices3) {
+                let rate;
+                if (price1.quoteA == 'weth') {
+                    rate = new BN("1").times(new BN(price1.price));
+                } else {
+                    rate = new BN("1").div(new BN(price1.price));
+                }
+
+                rate = rate.times(new BN(p.price));
+
+                if (price3.quoteA == 'weth') {
+                    rate = rate.div(new BN(price3.price));
+                } else {
+                    rate = rate.times(new BN(price3.price));
+                }
+                rate = rate.minus("1").abs().toFixed(8);
+                // c(`triangular rate: ${rate}`);
+                if (rate < rateT) {
+                    continue;
+                }
+                // c(price1, p, price3);
+
+                let step = [];
+                let jobType = 'triangular_arbitrage';
+                let s1, s2, s3;
+                s1 = _.cloneDeep(price1);
+                s2 = _.cloneDeep(p);
+                s3 = _.cloneDeep(price3);
+
+                if (price1.quoteA == 'weth') {
+                    s1.type = 'sell';
+                } else {
+                    s1.type = 'buy';
+                }
+                step.push(s1);
+                s2.type = 'sell';
+                step.push(s2);
+                if (price3.quoteA == 'weth') {
+                    s3.type = 'buy';
+                } else {
+                    s3.type = 'sell';
+                }
+                step.push(s3);
+
+                //step的解析，考虑滑点，计算最终产出 A。 计算交易手续费B = gas * gasPrice。要求A > B
+                let isErr = false;
+                let principal = 0, profit = 0, failProfit = 0;
+                for (let _p of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]) {
+                    let [err, _back] = calcProfit(_p, step);
+                    if (err) {
+                        console.error(`calcProfit error: `, err);
+                        isErr = true;
+                        break;
+                    }
+                    let _profit = _back - _p;
+                    if (_profit > profit) {
+                        //如果有利润
+                        principal = _p;
+                        profit = _profit;
+                    } else {
+                        failProfit = _profit;
+                        break;
+                    }
+                }
+                if (isErr) {
+                    continue;
+                }
+
+                //如果有principal，那么再通过gasPrice计算一下手续费，就能初步估计成本了。
+                let fee = 0;
+                if (principal > 0) {
+                    fee = new BN(gGasPrice).times("1.2").times(450000).div(new BN(10).pow(18)).toFixed(18);
+                    profit = profit - fee;
+                } else {
+                    //不保存完全无法盈利的数据
+                    continue;
+                }
+
+                let job = {
+                    uuid: uuidv4(),
+                    type: jobType,
+                    height: p.height,
+                    step: step,
+                    quote: `${p.quoteA}/${p.quoteB}`,
+                    status: 0,
+                    principal: principal,
+                    txFee: fee,
+                    profit: principal > 0 ? profit : failProfit,
+                    txHash: "",
+                };
+
+                //push & save & execute
+                // socket.broadcast.emit('new_arbitrage', job);
+                let [err, ok] = await db.newArbitrageJob(job.uuid, job.type, job.height, JSON.stringify(job.step), job.quote, rate, job.status, job.principal, job.txFee, job.profit);
+                if (err) {
+                    console.error(`newArbitrageJob error: `, err);
+                }
+
+                gJobs.push(job);
+            }
+        }
+
     }
 }
 
@@ -293,7 +440,9 @@ async function jobConsumer() {
             continue;
         }
 
-        if (job.principal == 0 || job.profit <= 0.02) {
+        if (job.principal == 0
+            || (job.type == 'move_bricks' && job.profit < 0.03)
+            || (job.type == 'triangular_arbitrage' && job.profit < 0.03)) {
             //没有执行价值
             await db.updateArbitrageJob(job.uuid, JOB_STATUS_UNWORTHY, job.txFee, job.profit, "");
             continue;
@@ -304,57 +453,48 @@ async function jobConsumer() {
                 continue;
             }
             if (gUnderwayTokens.hasOwnProperty(quote)) {
+                //TODO 这种情况（并发）本身还要考虑余额和nonce的问题
                 await db.updateArbitrageJob(job.uuid, JOB_STATUS_REPEATED, job.txFee, job.profit, "");
                 continue;
             }
         }
 
-        if (job.type == "move_bricks") {
-            //trigger arbitrage
-            await db.updateArbitrageJob(job.uuid, JOB_STATUS_DOING, job.txFee, job.profit, "");
-            //解析step，调用web3，回调结果
-            await callArbitrageByJob(job, async function (err, tx) {
-                for (const q of job.quote.split('/')) {
-                    delete gUnderwayTokens[q];
-                }
-                if (err) {
-                    console.error("callArbitrageByJob error", err);
-                    await db.updateArbitrageJob(job.uuid, JOB_STATUS_FAILED, job.txFee, job.profit, "");
-                    await ding.ding('defi-arbitrage', `callArbitrageByJob error`);
-                    process.exit(1);
-                    return;
-                }
-                let hash = tx.transactionHash || "unknown";
-                let gasUsed = tx.gasUsed;
-                let fee = tx.hash || 0; //TODO
-                if (Object.keys(tx.events).length == 0) {
-                    console.error("callArbitrageByJob error , no events : ", err);
-                    await db.updateArbitrageJob(job.uuid, JOB_STATUS_FAILED_NO_EVENTS, job.txFee, job.profit, hash);
-                    await ding.ding('defi-arbitrage', `callArbitrageByJob error , no events: ${hash}`);
-                    process.exit(1);
-                    return;
-                }
-                ding.ding('defi-arbitrage',
-                    `
+        await db.updateArbitrageJob(job.uuid, JOB_STATUS_DOING, job.txFee, job.profit, "");
+        //trigger arbitrage
+        //解析step，调用web3，回调结果
+        await callArbitrageByJob(job, async function (err, tx) {
+            for (const q of job.quote.split('/')) {
+                delete gUnderwayTokens[q];
+            }
+            if (err) {
+                console.error("callArbitrageByJob error", err);
+                await db.updateArbitrageJob(job.uuid, JOB_STATUS_FAILED, job.txFee, job.profit, "");
+                await ding.ding('defi-arbitrage', `callArbitrageByJob error`);
+                process.exit(1);
+                return;
+            }
+            let hash = tx.transactionHash || "unknown";
+            let gasUsed = tx.gasUsed;
+            let fee = tx.hash || 0; //TODO
+            if (Object.keys(tx.events).length == 0) {
+                console.error("callArbitrageByJob error , no events : ", err);
+                await db.updateArbitrageJob(job.uuid, JOB_STATUS_FAILED_NO_EVENTS, job.txFee, job.profit, hash);
+                await ding.ding('defi-arbitrage', `callArbitrageByJob error , no events: ${hash}`);
+                process.exit(1);
+                return;
+            }
+            ding.ding('defi-arbitrage', `
+**type:** ${job.type}
 **uuid:** ${job.uuid}
  
 **hash:** ${hash}
 
 **profit:** ${job.profit}
 
-[前去围观](https://etherscan.io/tx/${hash})
-                    `);
-                await db.updateArbitrageJob(job.uuid, JOB_STATUS_DONE, job.txFee, job.profit, hash);
-            });
+[前去围观](https://etherscan.io/tx/${hash})`);
+            await db.updateArbitrageJob(job.uuid, JOB_STATUS_DONE, job.txFee, job.profit, hash);
+        });
 
-        } else if (job.type == 'triple_move_bricks') {
-            console.log(`consumer triple_move_bricks`);
-            await db.updateArbitrageJob(job.uuid, 35, 0, 0, "");
-        } else if (job.type == 'triangular_arbitrage') {
-            console.log(`consumer triangular_arbitrage`);
-        } else {
-            console.warn(`unknown job ${job.uuid} ${job.type}`);
-        }
 
         await common.sleep(10);
     }
@@ -380,9 +520,9 @@ async function callArbitrageByJob(job, callback) {
 
         args.push(step.protocol, exchangeAddress, gTokens[fromToken].address, gTokens[toToken].address, i == 0 ? new BN(job.principal).times(new BN(10).pow(gTokens[fromToken].decimal)).toFixed(0) : '0');
     }
-    if (args[2] != '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'
+    if (job.type == 'move_bricks' && (args[2] != '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'
         || args[8] != '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'
-        || args[9] != '0') {
+        || args[9] != '0')) {
         console.warn(`warn 顺序问题: ${job}, ${args}, ${gTokens}`);
         await callback(new Error('args 顺序问题'));
         return;
@@ -402,10 +542,18 @@ async function callArbitrageByJob(job, callback) {
         // if (estimateGas == GAS) {
         //     throw new Error(`gas exceed ${GAS}`);
         // }
-
-        tx = await arbitrage.methods
-            .a2(...args)
-            .send({from: acc.address, gas: GAS, gasPrice: executeGasPrice});
+        if (job.type == 'move_bricks') {
+            tx = await arbitrage.methods
+                .a2(...args)
+                .send({from: acc.address, gas: GAS, gasPrice: executeGasPrice});
+        } else if (job.type == 'triangular_arbitrage') {
+            c(`triangular_arbitrage a3: `, args);
+            tx = await arbitrage.methods
+                .a3(...args)
+                .send({from: acc.address, gas: GAS, gasPrice: executeGasPrice});
+        } else {
+            throw new Error('call unknown job type, uuid: ' + job.uuid);
+        }
         console.log(`txinfo`, tx);
     } catch (e) {
         console.log(`send a2:`, args);

@@ -59,4 +59,41 @@ exports.memoryInfoForever = async function (ms) {
         this.memoryInfo();
         await this.sleep(ms);
     }
+};
+
+exports.sortTokensAsc = function (tokens) {
+    let cnt = tokens.length;
+    for (let i = 0; i < cnt - 1; i++) {
+        for (let j = i + 1; j < cnt; j++) {
+            if (tokens[i] > tokens[j]) {
+                [tokens[i], tokens[j]] = [tokens[j], tokens[i]];
+            }
+        }
+    }
+    return tokens;
+};
+exports.sortTokensDesc = function (tokens) {
+    let cnt = tokens.length;
+    for (let i = 0; i < cnt - 1; i++) {
+        for (let j = i + 1; j < cnt; j++) {
+            if (tokens[i] < tokens[j]) {
+                [tokens[i], tokens[j]] = [tokens[j], tokens[i]];
+            }
+        }
+    }
+    return tokens;
+};
+exports.tokens2String = function (tokens) {
+    return tokens.join('/');
+};
+exports.string2Tokens = function (str) {
+    return str.split('/');
+};
+exports.hasToken = function (token, tokens) {
+    for (let t of tokens) {
+        if (token == t) {
+            return true;
+        }
+    }
+    return false;
 }
