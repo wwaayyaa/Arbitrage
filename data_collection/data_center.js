@@ -101,7 +101,7 @@ io.on('connection', socket => {
         // socket.broadcast.emit('new_prices', data);
 
         /* 此处是各种套利模型判断价格是否达到触发值的地方，未来可能要剥离 */
-        await lookupMoveBricks(data);
+        await lookupMoveBricks(socket, data);
 
     });
 
@@ -119,6 +119,7 @@ io.on('connection', socket => {
 
 /*通过价格发现套利机会*/
 async function lookupMoveBricks(
+    socket,
     /* [{protocol, exchange, quoteA, quoteB, price, height,
          master, balanceA, balanceB, weightA, weightB}] */
     data) {
@@ -287,7 +288,7 @@ async function jobConsumer() {
             continue;
         }
         if (job.height != gBlock.height) {
-            console.log(`${job.height} ${gBlock.height}`);
+            // console.log(`job height:${job.height} != now height: ${gBlock.height}`);
             await db.updateArbitrageJob(job.uuid, JOB_STATUS_HEIGHT_FALL_BEHIND, job.txFee, job.profit, "");
             continue;
         }
