@@ -11,6 +11,7 @@ const web3Local = init.initLocalWeb3()
 const arbitrageInfo = init.getArbitrage();
 
 const c = console.log;
+const _ = require('lodash');
 const cc = require('../ChainConfig');
 // const ca = require("../ContractAddresses");
 const io = require('socket.io')(2077);
@@ -44,20 +45,8 @@ class Prices {
 
     add(prices) {
         for (let i = 0; i < prices.length; i++) {
-            let p = prices[i];
-            let k = this.getKey(prices[i]);
-            //引用，不做覆盖
+            //引用
             this.prices[this.getKey(prices[i])] = prices[i];
-            // if (!this.prices.hasOwnProperty(k)) {
-            //     this.prices[k] = {};
-            // }
-            // this.prices[k].protocol = p.protocol;
-            // this.prices[k].exchange = p.exchange;
-            // this.prices[k].quoteA = p.quoteA;
-            // this.prices[k].quoteB = p.quoteB;
-            // this.prices[k].price = p.price;
-            // this.prices[k].height = p.height;
-            // this.prices[k].timestamp = p.timestamp;
         }
     };
 
@@ -105,132 +94,14 @@ io.on('connection', socket => {
     /* 获取上报的价格数据 */
     socket.on('collected_v3', async (
         /* [{protocol, exchange, quoteA, quoteB, price, height,
-         master, balanceA, balanceB, weightA, weightB}] */data
+         master, balanceA, balanceB, weightA, weightB}] */
+        data
     ) => {
-        // console.log('~', data, typeof data);
-        let timestamp = new dayjs().unix();
-        for (let i = 0; i < data.length; i++) {
-            let d = data[i];
-            // console.log('~', d);
-            d.timestamp = timestamp;
-        }
         gPrices.add(data);
-
-        socket.broadcast.emit('new_prices', data);
+        // socket.broadcast.emit('new_prices', data);
 
         /* 此处是各种套利模型判断价格是否达到触发值的地方，未来可能要剥离 */
-        //根据变动的数据，和已更新的数据做对比。避免全量筛选，减少循环次数。
-        for (let i = 0; i < data.length; i++) {
-            let p = data[i];
-            if (!p.master || p.height != gBlock.height) { //反向交易对不参与计算
-                continue;
-            }
-            let pairs = gPrices.findByQuoteAB(p.quoteA, p.quoteB);
-            for (let j = 0; j < pairs.length; j++) {
-                let pair = pairs[j];
-                if ((p.protocol == pair.protocol && p.exchange == pair.exchange) || p.height != pair.height) {
-                    continue;
-                }
-                //对比差价
-                let rateT = 0.01;
-                let rate = Math.abs(p.price / pair.price - 1);
-                if (rate < rateT) {
-                    continue;
-                }
-                //大于套利阈值
-                /*
-                    step 生成分三种情况。
-                    eth在前
-                    eth在后
-                    无eth    我们需要知道这种的数量和价差比例，但是先不做，因为套利链条太长了，手续费太高。
-                 */
-                let step = [];
-                let jobType = 'move_bricks';
-                if (p.quoteA == 'weth') {
-                    let s1, s2;
-                    if (p.price > pair.price) {
-                        s1 = p;
-                        s2 = pair;
-                    } else {
-                        s1 = pair;
-                        s2 = p;
-                    }
-                    s1.type = 'sell';
-                    s2.type = 'buy';
-                    step.push(s1, s2);
-                } else if (p.quoteB == 'weth') {
-                    let s1, s2;
-                    if (p.price > pair.price) {
-                        s1 = pair;
-                        s2 = p;
-                    } else {
-                        s1 = p;
-                        s2 = pair;
-                    }
-                    s1.type = 'buy';
-                    s2.type = 'sell';
-                    step.push(s1, s2);
-                } else {
-                    jobType = 'triple_move_bricks';
-                    //TODO 暂时忽略 三方搬砖套利
-                    continue;
-                }
-
-                //step的解析，考虑滑点，计算最终产出 A。 计算交易手续费B = gas * gasPrice。要求A > B
-                let principals = [1, 2, 3, 5, 8, 10];
-                let isErr = false;
-                let principal = 0, profit = 0, failProfit = 0;
-                for (let _i = 0; _i < principals.length; _i++) {
-                    let [err, _back] = calcProfit(principals[_i], step);
-                    if (err) {
-                        console.error(`calcProfit error: `, err);
-                        isErr = true;
-                        break;
-                    }
-                    let _profit = _back - principals[_i];
-                    if (_profit > profit) {
-                        //如果有利润
-                        principal = principals[_i];
-                        profit = _profit;
-                    } else {
-                        failProfit = _profit;
-                        break;
-                    }
-                }
-                if (isErr) {
-                    continue;
-                }
-
-                //如果有principal，那么再通过gasPrice计算一下手续费，就能初步估计成本了。
-                let fee = 0;
-                if (principal > 0) {
-                    fee = new BN(gGasPrice).times("1.2").times(300000).div(new BN(10).pow(18)).toFixed(18);
-                    profit = profit - fee;
-                }
-
-                let job = {
-                    uuid: uuidv4(),
-                    type: jobType,
-                    height: p.height,
-                    step: step,
-                    quote: `${p.quoteA}/${p.quoteB}`,
-                    status: 0,
-                    principal: principal,
-                    txFee: fee,
-                    profit: principal > 0 ? profit : failProfit,
-                    txHash: "",
-                };
-
-                //push & save & execute
-                socket.broadcast.emit('new_arbitrage', job);
-                let [err, ok] = await db.newArbitrageJob(job.uuid, job.type, job.height, JSON.stringify(job.step), job.quote, rate, job.status, job.principal, job.txFee, job.profit);
-                if (err) {
-                    console.error(`newArbitrageJob error: `, err);
-                }
-
-                gJobs.push(job);
-            }
-        }
+        await lookupMoveBricks(data);
 
     });
 
@@ -245,6 +116,124 @@ io.on('connection', socket => {
         // console.log('disconnect')
     });
 });
+
+/*通过价格发现套利机会*/
+async function lookupMoveBricks(
+    /* [{protocol, exchange, quoteA, quoteB, price, height,
+         master, balanceA, balanceB, weightA, weightB}] */
+    data) {
+//根据变动的数据，和已更新的数据做对比。避免全量筛选，减少循环次数。
+    for (let i = 0; i < data.length; i++) {
+        let p = data[i];
+        if (!p.master || p.height != gBlock.height) { //反向交易对不参与计算
+            continue;
+        }
+        let pairs = gPrices.findByQuoteAB(p.quoteA, p.quoteB);
+        for (let j = 0; j < pairs.length; j++) {
+            let pair = pairs[j];
+            if ((p.protocol == pair.protocol && p.exchange == pair.exchange) || p.height != pair.height) {
+                continue;
+            }
+            //对比差价
+            let rateT = 0.01;
+            let rate = Math.abs(p.price / pair.price - 1);
+            if (rate < rateT) {
+                continue;
+            }
+            //大于套利阈值
+            /*
+                step 生成分三种情况。
+                eth在前
+                eth在后
+                无eth    我们需要知道这种的数量和价差比例，但是先不做，因为套利链条太长了，手续费太高。
+             */
+            let step = [];
+            let jobType = 'move_bricks';
+            if (p.quoteA == 'weth') {
+                let s1, s2;
+                if (p.price > pair.price) {
+                    s1 = _.cloneDeep(p);
+                    s2 = _.cloneDeep(pair);
+                } else {
+                    s1 = _.cloneDeep(pair);
+                    s2 = _.cloneDeep(p);
+                }
+                s1.type = 'sell';
+                s2.type = 'buy';
+                step.push(s1, s2);
+            } else if (p.quoteB == 'weth') {
+                let s1, s2;
+                if (p.price > pair.price) {
+                    s1 = _.cloneDeep(pair);
+                    s2 = _.cloneDeep(p);
+                } else {
+                    s1 = _.cloneDeep(p);
+                    s2 = _.cloneDeep(pair);
+                }
+                s1.type = 'buy';
+                s2.type = 'sell';
+                step.push(s1, s2);
+            } else {
+                jobType = 'triple_move_bricks';
+                //TODO 暂时忽略 三方搬砖套利
+                continue;
+            }
+
+            //step的解析，考虑滑点，计算最终产出 A。 计算交易手续费B = gas * gasPrice。要求A > B
+            let isErr = false;
+            let principal = 0, profit = 0, failProfit = 0;
+            for (let _p of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]) {
+                let [err, _back] = calcProfit(_p, step);
+                if (err) {
+                    console.error(`calcProfit error: `, err);
+                    isErr = true;
+                    break;
+                }
+                let _profit = _back - _p;
+                if (_profit > profit) {
+                    //如果有利润
+                    principal = _p;
+                    profit = _profit;
+                } else {
+                    failProfit = _profit;
+                    break;
+                }
+            }
+            if (isErr) {
+                continue;
+            }
+
+            //如果有principal，那么再通过gasPrice计算一下手续费，就能初步估计成本了。
+            let fee = 0;
+            if (principal > 0) {
+                fee = new BN(gGasPrice).times("1.2").times(300000).div(new BN(10).pow(18)).toFixed(18);
+                profit = profit - fee;
+            }
+
+            let job = {
+                uuid: uuidv4(),
+                type: jobType,
+                height: p.height,
+                step: step,
+                quote: `${p.quoteA}/${p.quoteB}`,
+                status: 0,
+                principal: principal,
+                txFee: fee,
+                profit: principal > 0 ? profit : failProfit,
+                txHash: "",
+            };
+
+            //push & save & execute
+            socket.broadcast.emit('new_arbitrage', job);
+            let [err, ok] = await db.newArbitrageJob(job.uuid, job.type, job.height, JSON.stringify(job.step), job.quote, rate, job.status, job.principal, job.txFee, job.profit);
+            if (err) {
+                console.error(`newArbitrageJob error: `, err);
+            }
+
+            gJobs.push(job);
+        }
+    }
+}
 
 function calcProfit(/* int 本金 */principal, /*[]*/steps) {
     let amountOut = 0;
@@ -286,7 +275,15 @@ function calcProfit(/* int 本金 */principal, /*[]*/steps) {
 
 async function main() {
     gTokens = await db.getTokensKeyByToken();
+    mem();
     jobConsumer();
+}
+
+async function mem(){
+    while (true){
+        common.memoryInfo();
+        await common.sleep(60000);
+    }
 }
 
 async function jobConsumer() {
@@ -302,7 +299,7 @@ async function jobConsumer() {
             continue;
         }
 
-        if (job.principal == 0 || job.profit <= 0.015) {
+        if (job.principal == 0 || job.profit <= 0.005) {
             //没有执行价值
             await db.updateArbitrageJob(job.uuid, JOB_STATUS_UNWORTHY, job.txFee, job.profit, "");
             continue;
