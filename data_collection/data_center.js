@@ -198,6 +198,7 @@ async function lookupMoveBricks(
             }
             let principal = maxPrincipal / 2;
             let [calcErr, profit] = calcProfit(principal, step);
+            profit = profit - principal;
             if (calcErr) {
                 continue;
             }
@@ -317,6 +318,7 @@ async function lookupTriangular(
                 }
                 let principal = maxPrincipal / 2;
                 let [calcErr, profit] = calcProfit(principal, step);
+                profit = profit - principal;
                 if (calcErr) {
                     continue;
                 }
@@ -358,6 +360,12 @@ async function lookupTriangular(
     }
 }
 
+/**
+ *
+ * @param principal
+ * @param steps
+ * @returns {Error[]|number[本金+利润]}
+ */
 function calcProfit(/* int 本金 */principal, /*[]*/steps) {
     let amountOut = 0;
     let amountIn = principal;
