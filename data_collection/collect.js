@@ -77,8 +77,9 @@ async function defiCrawler(quote, socket) {
         console.log(`[new block] height:${blockHeight} hash:${blockHash} timestamp:${block.timestamp} now:${now.unix()}`);
         socket.emit('new_block', {height: blockHeight, hash: blockHash, timestamp: block.timestamp});
 
+        //TODO 优化，出块应该单独异步，doIt发现块高变化应该立即停止。
         //just fuck it
-        for (let i = 0; i < quote.length; i++) {
+        for (let i = 0; i < common.shuffle(quote).length; i++) {
             let q = quote[i];
             //并发提高速度
             doIt(q, blockHeight, socket)

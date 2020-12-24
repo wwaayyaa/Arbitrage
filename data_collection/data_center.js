@@ -31,7 +31,7 @@ const JOB_STATUS_REPEATED = 33;
 const JOB_STATUS_FAILED = -1;
 const JOB_STATUS_FAILED_NO_EVENTS = -2;
 
-const GAS = 400000;
+const GAS = 200000;
 
 /* 纯数组，会有性能问题，先暂时不考虑。后期应该引入新的结构（引用，内存数据库）提高查询效率 */
 class Prices {
@@ -362,7 +362,7 @@ async function lookupTriangular(
                     type: jobType,
                     height: p.height,
                     step: step,
-                    quote: `${p.quoteA}/${p.quoteB}`,
+                    quote: `weth/${p.quoteA}/${p.quoteB}`,
                     status: 0,
                     principal: principal,
                     txFee: fee,
@@ -437,7 +437,7 @@ async function jobConsumer() {
         }
         if (job.height != gBlock.height) {
             // console.log(`job height:${job.height} != now height: ${gBlock.height}`);
-            await db.updateArbitrageJob(job.uuid, JOB_STATUS_HEIGHT_FALL_BEHIND, job.txFee, job.profit, "");
+            db.updateArbitrageJob(job.uuid, JOB_STATUS_HEIGHT_FALL_BEHIND, job.txFee, job.profit, "");
             continue;
         }
 
@@ -445,7 +445,7 @@ async function jobConsumer() {
             || (job.type == 'move_bricks' && job.profit < 0.03)
             || (job.type == 'triangular_arbitrage' && job.profit < 0.03)) {
             //没有执行价值
-            await db.updateArbitrageJob(job.uuid, JOB_STATUS_UNWORTHY, job.txFee, job.profit, "");
+            db.updateArbitrageJob(job.uuid, JOB_STATUS_UNWORTHY, job.txFee, job.profit, "");
             continue;
         }
         let quotes = job.quote.split('/');
@@ -455,7 +455,7 @@ async function jobConsumer() {
             }
             if (gUnderwayTokens.hasOwnProperty(quote)) {
                 //TODO 这种情况（并发）本身还要考虑余额和nonce的问题
-                await db.updateArbitrageJob(job.uuid, JOB_STATUS_REPEATED, job.txFee, job.profit, "");
+                db.updateArbitrageJob(job.uuid, JOB_STATUS_REPEATED, job.txFee, job.profit, "");
                 continue;
             }
         }
@@ -486,7 +486,10 @@ async function jobConsumer() {
             }
             ding.ding('defi-arbitrage', `
 **type:** ${job.type}
+
 **uuid:** ${job.uuid}
+
+**tokens:** ${job.quote}
  
 **hash:** ${hash}
 
@@ -503,6 +506,7 @@ async function jobConsumer() {
 
 async function callArbitrageByJob(job, callback) {
     let args = [job.height + 1, gBlock.timestamp + 300, []];
+    // let args = [job.height + 10, 3333333333, []];
     for (let i = 0; i < job.step.length; i++) {
         let step = job.step[i];
         let exchangeAddress, fromToken, toToken;
@@ -552,9 +556,9 @@ async function callArbitrageByJob(job, callback) {
         //     throw new Error(`gas exceed ${GAS}`);
         // }
         c(`[aN] type: ${job.type}, args:`, args);
-        tx = await arbitrage.methods
-            .aN(...args)
-            .send({from: acc.address, gas: GAS, gasPrice: executeGasPrice});
+        // tx = await arbitrage.methods
+        //     .aN(...args)
+        //     .send({from: acc.address, gas: GAS * args[2].length, gasPrice: executeGasPrice});
 
         // if (job.type == 'move_bricks') {
         //     tx = await arbitrage.methods
@@ -577,9 +581,9 @@ async function callArbitrageByJob(job, callback) {
         }
         return;
     }
-    if (callback) {
-        await callback(null, tx);
-    }
+    // if (callback) {
+    //     await callback(null, tx);
+    // }
 }
 
 main();
