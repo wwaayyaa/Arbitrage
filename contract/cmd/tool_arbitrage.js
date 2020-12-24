@@ -2,13 +2,13 @@ const init = require('../../common/init').init();
 const {web3, acc} = init.initWeb3AndAccount();
 const arbitrageInfo = init.getArbitrage();
 
+
 let cc = require("../../ChainConfig");
 // let ca = require("../../ContractAddresses");
 const {program} = require('commander');
 const c = console.log;
 let utils = web3.utils;
 const GAS = process.env.APP_ENV == 'production' ? 300000 : 5000000;
-
 
 (async () => {
     let gGasPrice = await web3.eth.getGasPrice();
