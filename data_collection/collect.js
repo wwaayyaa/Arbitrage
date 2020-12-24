@@ -74,8 +74,8 @@ async function defiCrawler(quote, socket) {
         let now = new dayjs();
         blockHeight = block.number;
         blockHash = block.hash;
-        console.log(`new block: ${blockHeight} ${blockHash} ${now.unix()}`);
-        socket.emit('new_block', {height: blockHeight, hash: blockHash});
+        console.log(`[new block] height:${blockHeight} hash:${blockHash} timestamp:${block.timestamp} now:${now.unix()}`);
+        socket.emit('new_block', {height: blockHeight, hash: blockHash, timestamp: block.timestamp});
 
         //just fuck it
         for (let i = 0; i < quote.length; i++) {

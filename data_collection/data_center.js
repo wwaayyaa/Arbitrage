@@ -91,6 +91,7 @@ io.on('connection', socket => {
     socket.on('new_block', async (data) => {
         gBlock.height = data.height;
         gBlock.hash = data.hash;
+        gBlock.timestamp = data.timestamp;
         socket.broadcast.emit('new_block', gBlock);
     });
     socket.on('get_latest_block', async () => {
@@ -111,8 +112,8 @@ io.on('connection', socket => {
         // socket.broadcast.emit('new_prices', data);
 
         /* 此处是各种套利模型判断价格是否达到触发值的地方，未来可能要剥离 */
-        // await lookupMoveBricks(socket, data);
-        await lookupTriangular(socket, data);
+        // lookupMoveBricks(socket, data);
+        lookupTriangular(socket, data);
     });
 
     socket.on('init', data => {
@@ -501,7 +502,7 @@ async function jobConsumer() {
 }
 
 async function callArbitrageByJob(job, callback) {
-    let args = [];
+    let args = [job.height + 1, gBlock.timestamp + 300, []];
     for (let i = 0; i < job.step.length; i++) {
         let step = job.step[i];
         let exchangeAddress, fromToken, toToken;
@@ -518,15 +519,23 @@ async function callArbitrageByJob(job, callback) {
         fromToken = step.type == 'buy' ? step.quoteB : step.quoteA;
         toToken = step.type == 'buy' ? step.quoteA : step.quoteB;
 
-        args.push(step.protocol, exchangeAddress, gTokens[fromToken].address, gTokens[toToken].address, i == 0 ? new BN(job.principal).times(new BN(10).pow(gTokens[fromToken].decimal)).toFixed(0) : '0');
+        args[2].push([
+            step.protocol == 'uniswap' ? '1' : '2', //TODO
+            exchangeAddress,
+            gTokens[fromToken].address,
+            gTokens[toToken].address,
+            i == 0 ? new BN(job.principal).times(new BN(10).pow(gTokens[fromToken].decimal)).toFixed(0) : '0',
+            '0' //TODO 预估收益需要增加上
+        ]);
     }
-    if (job.type == 'move_bricks' && (args[2] != '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'
-        || args[8] != '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'
-        || args[9] != '0')) {
-        console.warn(`warn 顺序问题: ${job}, ${args}, ${gTokens}`);
-        await callback(new Error('args 顺序问题'));
-        return;
-    }
+
+    // if (job.type == 'move_bricks' && (args[2] != '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'
+    //     || args[8] != '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'
+    //     || args[9] != '0')) {
+    //     console.warn(`warn 顺序问题: ${job}, ${args}, ${gTokens}`);
+    //     await callback(new Error('args 顺序问题'));
+    //     return;
+    // }
 
     let arbitrage = new web3.eth.Contract(arbitrageInfo.abi, arbitrageInfo.address);
     let tx = null;
@@ -542,22 +551,27 @@ async function callArbitrageByJob(job, callback) {
         // if (estimateGas == GAS) {
         //     throw new Error(`gas exceed ${GAS}`);
         // }
-        if (job.type == 'move_bricks') {
-            tx = await arbitrage.methods
-                .a2(...args)
-                .send({from: acc.address, gas: GAS, gasPrice: executeGasPrice});
-        } else if (job.type == 'triangular_arbitrage') {
-            c(`triangular_arbitrage a3: `, args);
-            tx = await arbitrage.methods
-                .a3(...args)
-                .send({from: acc.address, gas: GAS, gasPrice: executeGasPrice});
-        } else {
-            throw new Error('call unknown job type, uuid: ' + job.uuid);
-        }
+        c(`[aN] type: ${job.type}, args:`, args);
+        tx = await arbitrage.methods
+            .aN(...args)
+            .send({from: acc.address, gas: GAS, gasPrice: executeGasPrice});
+
+        // if (job.type == 'move_bricks') {
+        //     tx = await arbitrage.methods
+        //         .a2(...args)
+        //         .send({from: acc.address, gas: GAS, gasPrice: executeGasPrice});
+        // } else if (job.type == 'triangular_arbitrage') {
+        //     c(`triangular_arbitrage a3: `, args);
+        //     tx = await arbitrage.methods
+        //         .a3(...args)
+        //         .send({from: acc.address, gas: GAS, gasPrice: executeGasPrice});
+        // } else {
+        //     throw new Error('call unknown job type, uuid: ' + job.uuid);
+        // }
         console.log(`txinfo`, tx);
     } catch (e) {
-        console.log(`send a2:`, args);
-        e.message = `send to a2 error: ` + (e.message || "");
+        console.log(`type: ${job.type}, send a2:`, args);
+        e.message = `send to a2 error: ` + (e.reason || "");
         if (callback) {
             await callback(e);
         }
