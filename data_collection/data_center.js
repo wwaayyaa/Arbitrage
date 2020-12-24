@@ -112,7 +112,7 @@ io.on('connection', socket => {
         // socket.broadcast.emit('new_prices', data);
 
         /* 此处是各种套利模型判断价格是否达到触发值的地方，未来可能要剥离 */
-        // lookupMoveBricks(socket, data);
+        lookupMoveBricks(socket, data);
         lookupTriangular(socket, data);
     });
 
@@ -192,26 +192,13 @@ async function lookupMoveBricks(
             }
 
             //step的解析，考虑滑点，计算最终产出 A。 计算交易手续费B = gas * gasPrice。要求A > B
-            let isErr = false;
-            let principal = 0, profit = 0, failProfit = 0;
-            for (let _p of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]) {
-                let [err, _back] = calcProfit(_p, step);
-                if (err) {
-                    console.error(`calcProfit error: `, err);
-                    isErr = true;
-                    break;
-                }
-                let _profit = _back - _p;
-                if (_profit > profit) {
-                    //如果有利润
-                    principal = _p;
-                    profit = _profit;
-                } else {
-                    failProfit = _profit;
-                    break;
-                }
+            let [calcMaxErr, maxPrincipal, maxProfit] = calcMaxProfit(step);
+            if (calcMaxErr || maxPrincipal <= 1) {
+                continue;
             }
-            if (isErr) {
+            let principal = maxPrincipal / 2;
+            let [calcErr, profit] = calcProfit(principal, step);
+            if (calcErr) {
                 continue;
             }
 
@@ -324,26 +311,13 @@ async function lookupTriangular(
                 step.push(s3);
 
                 //step的解析，考虑滑点，计算最终产出 A。 计算交易手续费B = gas * gasPrice。要求A > B
-                let isErr = false;
-                let principal = 0, profit = 0, failProfit = 0;
-                for (let _p of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]) {
-                    let [err, _back] = calcProfit(_p, step);
-                    if (err) {
-                        console.error(`calcProfit error: `, err);
-                        isErr = true;
-                        break;
-                    }
-                    let _profit = _back - _p;
-                    if (_profit > profit) {
-                        //如果有利润
-                        principal = _p;
-                        profit = _profit;
-                    } else {
-                        failProfit = _profit;
-                        break;
-                    }
+                let [calcMaxErr, maxPrincipal, maxProfit] = calcMaxProfit(step);
+                if (calcMaxErr || maxPrincipal <= 1) {
+                    continue;
                 }
-                if (isErr) {
+                let principal = maxPrincipal / 2;
+                let [calcErr, profit] = calcProfit(principal, step);
+                if (calcErr) {
                     continue;
                 }
 
@@ -366,7 +340,7 @@ async function lookupTriangular(
                     status: 0,
                     principal: principal,
                     txFee: fee,
-                    profit: principal > 0 ? profit : failProfit,
+                    profit: profit,
                     txHash: "",
                 };
 
@@ -402,9 +376,6 @@ function calcProfit(/* int 本金 */principal, /*[]*/steps) {
             balanceOut = step.balanceA;
         }
         if (step.protocol == 'uniswap') {
-            // let amountIn = new BN(principal).times(new BN(10).pow(gTokens[tokenIn].decimal));
-            // balanceIn = new BN(balanceIn).times(new BN(10).pow(gTokens[tokenIn].decimal));
-            // balanceOut = new BN(balanceOut).times(new BN(10).pow(gTokens[tokenOut].decimal));
             amountOut = new calcHelper.UniswapHelper().getAmountOutDecimal(amountIn, balanceIn, balanceOut);
         } else if (step.protocol == 'balancer') {
             let weightIn = step.weightA;
@@ -421,6 +392,23 @@ function calcProfit(/* int 本金 */principal, /*[]*/steps) {
     return [null, amountOut];
 }
 
+function calcMaxProfit(/* [] */steps) {
+    let principal = 0, lastProfit = 0;
+    for (let _p of [1, 2, 4, 6, 8, 10, 12, 15, 20]) {
+        let [err, _back] = calcProfit(_p, steps);
+        if (err) {
+            console.error(`calcMaxProfit error: `, err);
+            return [err];
+        }
+        if (_back <= _p) {
+            break;
+        }
+        principal = _p;
+        lastProfit = _back - _p;
+    }
+    return [null, principal, lastProfit];
+}
+
 
 async function main() {
     gTokens = await db.getTokensKeyByToken();
@@ -429,10 +417,13 @@ async function main() {
 }
 
 async function jobConsumer() {
+    const sleepMs = 500;
     while (true) {
-        let job = gJobs.shift();
-        if (typeof job == "undefined") {
-            await common.sleep(10);
+        // let job = gJobs.shift();
+        let jobs = gJobs.splice(0, 100);
+        let job = jobs.reduce((max, p) => (p.height > max.height || (p.height == max.height && p.profit > max.profit)) ? p : max, jobs[0]);
+        if (!job) {
+            await common.sleep(sleepMs);
             continue;
         }
         if (job.height != gBlock.height) {
@@ -500,7 +491,7 @@ async function jobConsumer() {
         });
 
 
-        await common.sleep(10);
+        await common.sleep(sleepMs);
     }
 }
 
