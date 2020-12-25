@@ -142,13 +142,14 @@ async function main() {
     // collect('0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852', {name:"eth/usdt"}, tokens);
     // return;
 
+    gasPriceMonitor(socket);
+
     const quote = await db.getQuotes();
     let cefiQuote = quote.filter(v => v.protocol == 'cefi');
     let defiQuote = quote.filter(v => v.protocol != 'cefi');
     //cefi 轮询或socket，defi监控出块
-    cefiCrawler(cefiQuote, socket);
+    // cefiCrawler(cefiQuote, socket);
     defiCrawler(defiQuote, socket);
-    gasPriceMonitor(socket);
 }
 
 async function getCefiPrice(exchangeName, quoteA, quoteB) {
