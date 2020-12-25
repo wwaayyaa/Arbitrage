@@ -12,7 +12,7 @@ import "./utils/Withdrawable.sol";
 
 contract Arbitrage is Withdrawable {
     using SafeERC20 for IERC20;
-    event StepTest(string n1, string n2, string n3, string n4);
+    event EStep(uint n);
 
     //协议(1 uniswap, 2 balancer)、ex（uniswap传入router地址，balancer传入pool地址）、addrfrom、addrto、amount
     struct Step {
@@ -33,25 +33,29 @@ contract Arbitrage is Withdrawable {
     }
 
     function stepExecutor(uint n, uint8 protocol, address ex, address addr1, address addr2, uint amount, uint minAmountOut, uint timestamp) internal returns (uint){
-        bool ok = IERC20(addr1).approve(ex, amount);
-        require(ok, append("PI-ERROR: approve error", uint2str(n)));
+        IERC20(addr1).approve(ex, amount);
 
         uint balanceBefore = IERC20(addr2).balanceOf(address(this));
 
         if (protocol == 1) {
+            //这三步大约10000gas
             delete path;
+            //3000+gas
             path.push(addr1);
             path.push(addr2);
+            //大概90000gas
             IUniswapV2Router01(ex).swapExactTokensForTokens(amount, minAmountOut, path, address(this), timestamp);
         } else if (protocol == 2) {
+            //大概92000gas
             IBPool(ex).swapExactAmountIn(addr1, amount, addr2, minAmountOut, 999999999999999999999999999999999999999999999);
         } else {
-            require(false, append("PI-ERROR: unknown p", uint2str(n)));
+            require(false, "PI-ERROR: unknown p");
         }
         uint balanceAfter = IERC20(addr2).balanceOf(address(this));
-        require(balanceAfter > balanceBefore, append("PI-ERROR: step ", uint2str(n)));
+        require(balanceAfter > balanceBefore, "PI-ERROR: check");
+        EStep(n);
 
-        return balanceAfter - balanceBefore;
+        return SafeMath.sub(balanceAfter, balanceBefore);
     }
 
     function aN(uint height, uint deadline, Step[] memory steps) public ensure(height, deadline) {
@@ -64,7 +68,7 @@ contract Arbitrage is Withdrawable {
         }
         uint wethBalanceAfter = IERC20(steps[0].addrFrom).balanceOf(address(this));
 
-        require(wethBalanceAfter > wethBalanceBefore, string(abi.encodePacked("PI-ERROR: FINISH")));
+        require(wethBalanceAfter > wethBalanceBefore, "PI-ERROR: FINISH");
     }
 
     //    function a2(uint height,
@@ -117,27 +121,26 @@ contract Arbitrage is Withdrawable {
         emit LogWithdraw(msg.sender, _assetAddress, amount);
     }
 
-    function append(string memory a, string memory b) internal pure returns (string memory) {
-        return string(abi.encodePacked(a, b));
-    }
-
-    function uint2str(uint _i) internal pure returns (string memory _uintAsString) {
-        if (_i == 0) {
-            return "0";
-        }
-        uint j = _i;
-        uint len;
-        while (j != 0) {
-            len++;
-            j /= 10;
-        }
-        bytes memory bstr = new bytes(len);
-        uint k = len - 1;
-        while (_i != 0) {
-            bstr[k--] = byte(uint8(48 + _i % 10));
-            _i /= 10;
-        }
-        return string(bstr);
-
-    }
+    //    function append(string memory a, string memory b) internal pure returns (string memory) {
+    //        return string(abi.encodePacked(a, b));
+    //    }
+    //
+    //    function uint2str(uint _i) internal pure returns (string memory _uintAsString) {
+    //        if (_i == 0) {
+    //            return "0";
+    //        }
+    //        uint j = _i;
+    //        uint len;
+    //        while (j != 0) {
+    //            len++;
+    //            j /= 10;
+    //        }
+    //        bytes memory bstr = new bytes(len);
+    //        uint k = len - 1;
+    //        while (_i != 0) {
+    //            bstr[k--] = byte(uint8(48 + _i % 10));
+    //            _i /= 10;
+    //        }
+    //        return string(bstr);
+    //    }
 }

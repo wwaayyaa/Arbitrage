@@ -43,21 +43,26 @@ let ca = require("../../ContractAddresses");
             .aN(
                 //ok move bricks
                 '21515416', '3333333333',
+                // [
+                //     ['2', "0x8b6e6e7b5b3801fed2cafd4b22b8a16c2f2db21a", cc.token.weth.address, cc.token.dai.address, web3.utils.toWei("10", 'ether'), "0"],
+                //     ['1', cc.exchange.uniswap.router02.address, cc.token.dai.address, cc.token.weth.address, "0", "0"]
+                // ]
                 [
-                    ['2', "0x8b6e6e7b5b3801fed2cafd4b22b8a16c2f2db21a", cc.token.weth.address, cc.token.dai.address, web3.utils.toWei("10", 'ether'), "0"],
-                    ['1', cc.exchange.uniswap.router02.address, cc.token.dai.address, cc.token.weth.address, "0", "0"]
+                    ["2", "0x8b6e6e7b5b3801fed2cafd4b22b8a16c2f2db21a", "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2", "0x6b175474e89094c44da98b954eedeac495271d0f", "10000000000000000000", "0"],
+                    ["1", "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D", "0x6b175474e89094c44da98b954eedeac495271d0f", "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2", "0", "0"]
                 ]
 
+
                 //ok triangular
-        //[{"quoteA":"aave","quoteB":"weth","price":"0.1262542020","master":true,"weightA":"25","weightB":"25","balanceA":"32147.089000441118603154","balanceB":"4052.617010073162911470","fee":"0.0015000000","protocol":"balancer","exchange":"0x7c90a3cd7ec80dd2f633ed562480abbeed3be546","minute":"202012240024","height":11510753,"type":"buy"},
-        //{"quoteA":"aave","quoteB":"wbtc","price":"0.0033122973","master":true,"weightA":"6.25","weightB":"12.5","balanceA":"2579.498239395053586449","balanceB":"17.03686565","fee":"0.0030000000","protocol":"balancer","exchange":"0x49ff149d649769033d43783e7456f626862cd160","minute":"202012240024","height":11510753,"type":"sell"},
-        //{"quoteA":"wbtc","quoteB":"weth","price":"38.8855554861","master":true,"weightA":"25","weightB":"25","balanceA":"114.73085271","balanceB":"4457.357703374399022472","fee":"0.0009000000","protocol":"balancer","exchange":"0xee9a6009b926645d33e10ee5577e9c8d3c95c165","minute":"202012240024","height":11510753,"type":"sell"}]
-        //         '21515416', '3333333333',
-        //         [
-        //             ['2', "0x7c90a3cd7ec80dd2f633ed562480abbeed3be546", cc.token.weth.address, cc.token.aave.address, web3.utils.toWei("2", 'ether'), "0"],
-        //             ['2', '0x49ff149d649769033d43783e7456f626862cd160', cc.token.aave.address, cc.token.wbtc.address, "0", "0"],
-        //             ['2', '0xee9a6009b926645d33e10ee5577e9c8d3c95c165', cc.token.wbtc.address, cc.token.weth.address, "0", "0"]
-        //         ]
+                //[{"quoteA":"aave","quoteB":"weth","price":"0.1262542020","master":true,"weightA":"25","weightB":"25","balanceA":"32147.089000441118603154","balanceB":"4052.617010073162911470","fee":"0.0015000000","protocol":"balancer","exchange":"0x7c90a3cd7ec80dd2f633ed562480abbeed3be546","minute":"202012240024","height":11510753,"type":"buy"},
+                //{"quoteA":"aave","quoteB":"wbtc","price":"0.0033122973","master":true,"weightA":"6.25","weightB":"12.5","balanceA":"2579.498239395053586449","balanceB":"17.03686565","fee":"0.0030000000","protocol":"balancer","exchange":"0x49ff149d649769033d43783e7456f626862cd160","minute":"202012240024","height":11510753,"type":"sell"},
+                //{"quoteA":"wbtc","quoteB":"weth","price":"38.8855554861","master":true,"weightA":"25","weightB":"25","balanceA":"114.73085271","balanceB":"4457.357703374399022472","fee":"0.0009000000","protocol":"balancer","exchange":"0xee9a6009b926645d33e10ee5577e9c8d3c95c165","minute":"202012240024","height":11510753,"type":"sell"}]
+                //         '21515416', '3333333333',
+                //         [
+                //             ['2', "0x7c90a3cd7ec80dd2f633ed562480abbeed3be546", cc.token.weth.address, cc.token.aave.address, web3.utils.toWei("2", 'ether'), "0"],
+                //             ['2', '0x49ff149d649769033d43783e7456f626862cd160', cc.token.aave.address, cc.token.wbtc.address, "0", "0"],
+                //             ['2', '0xee9a6009b926645d33e10ee5577e9c8d3c95c165', cc.token.wbtc.address, cc.token.weth.address, "0", "0"]
+                //         ]
             )
             .send({from: acc.address, gas: 5000000});
         c('tx', x);
