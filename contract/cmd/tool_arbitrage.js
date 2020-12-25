@@ -36,7 +36,7 @@ const GAS = process.env.APP_ENV == 'production' ? 100000 : 5000000;
                     from: acc.address,
                     value: web3.utils.toWei(amount, 'ether'),
                     gas: GAS,
-                    gasPrice: gGasPrice
+                    gasPrice: gGasPrice,
                 });
             } else if (token = 'eth') {
                 await warpETHContract.methods.withdraw(web3.utils.toWei(amount, 'ether')).send({
