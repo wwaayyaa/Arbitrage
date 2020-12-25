@@ -443,8 +443,8 @@ async function jobConsumer() {
         }
 
         if (job.principal == 0
-            || (job.type == 'move_bricks' && job.profit < 0.03)
-            || (job.type == 'triangular_arbitrage' && job.profit < 0.03)) {
+            || (job.type == 'move_bricks' && job.profit < 0.005)
+            || (job.type == 'triangular_arbitrage' && job.profit < 0.005)) {
             //没有执行价值
             db.updateArbitrageJob(job.uuid, JOB_STATUS_UNWORTHY, job.txFee, job.profit, "");
             continue;
