@@ -33,7 +33,7 @@ const JOB_STATUS_FAILED_NO_EVENTS = -2;
 
 /*优化后的合约更便宜*/
 // const GAS = 180000;
-const GAS = 90000;
+const GAS = 150000;
 
 /* 纯数组，会有性能问题，先暂时不考虑。后期应该引入新的结构（引用，内存数据库）提高查询效率 */
 class Prices {
@@ -114,7 +114,7 @@ io.on('connection', socket => {
         // socket.broadcast.emit('new_prices', data);
 
         /* 此处是各种套利模型判断价格是否达到触发值的地方，未来可能要剥离 */
-        // lookupMoveBricks(socket, data);
+        lookupMoveBricks(socket, data);
         lookupTriangular(socket, data);
     });
 

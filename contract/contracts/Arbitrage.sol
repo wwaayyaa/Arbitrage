@@ -4,7 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import './interfaces/IUniswapV2Router01.sol';
 import './interfaces/IBPool.sol';
-import "@openzeppelin/contracts/math/SafeMath.sol";
+//import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -55,7 +55,7 @@ contract Arbitrage is Withdrawable {
         require(balanceAfter > balanceBefore, "PI-ERROR: check");
         EStep(n);
 
-        return SafeMath.sub(balanceAfter, balanceBefore);
+        return balanceAfter - balanceBefore;
     }
 
     function aN(uint height, uint deadline, Step[] memory steps) public ensure(height, deadline) {

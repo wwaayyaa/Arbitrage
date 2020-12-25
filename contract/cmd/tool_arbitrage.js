@@ -8,7 +8,7 @@ let cc = require("../../ChainConfig");
 const {program} = require('commander');
 const c = console.log;
 let utils = web3.utils;
-const GAS = process.env.APP_ENV == 'production' ? 300000 : 5000000;
+const GAS = process.env.APP_ENV == 'production' ? 100000 : 5000000;
 
 (async () => {
     let gGasPrice = await web3.eth.getGasPrice();
@@ -65,12 +65,21 @@ const GAS = process.env.APP_ENV == 'production' ? 300000 : 5000000;
                 gasPrice: gGasPrice
             });
         } else if (depoistOrWithdraw = 'withdraw') {
-            await arbitrage.methods
-                .withdrawN(cc.token.weth.address, web3.utils.toWei(amount, 'ether'))
-                .send({
-                    from: acc.address, gas: GAS,
-                    gasPrice: gGasPrice
-                });
+            if (amount == 0) {
+                await arbitrage.methods
+                    .withdraw(cc.token.weth.address)
+                    .send({
+                        from: acc.address, gas: GAS,
+                        gasPrice: gGasPrice
+                    });
+            } else {
+                await arbitrage.methods
+                    .withdrawN(cc.token.weth.address, web3.utils.toWei(amount, 'ether'))
+                    .send({
+                        from: acc.address, gas: GAS,
+                        gasPrice: gGasPrice
+                    });
+            }
         } else {
             console.error('unknown depoistOrWithdraw:' + depoistOrWithdraw);
         }
