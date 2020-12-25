@@ -556,23 +556,12 @@ async function callArbitrageByJob(job, callback) {
         // if (estimateGas == GAS) {
         //     throw new Error(`gas exceed ${GAS}`);
         // }
+
         c(`[aN] type: ${job.type}, args:`, args);
         tx = await arbitrage.methods
             .aN(...args)
             .send({from: acc.address, gas: GAS * args[2].length, gasPrice: executeGasPrice});
 
-        // if (job.type == 'move_bricks') {
-        //     tx = await arbitrage.methods
-        //         .a2(...args)
-        //         .send({from: acc.address, gas: GAS, gasPrice: executeGasPrice});
-        // } else if (job.type == 'triangular_arbitrage') {
-        //     c(`triangular_arbitrage a3: `, args);
-        //     tx = await arbitrage.methods
-        //         .a3(...args)
-        //         .send({from: acc.address, gas: GAS, gasPrice: executeGasPrice});
-        // } else {
-        //     throw new Error('call unknown job type, uuid: ' + job.uuid);
-        // }
         console.log(`txinfo`, tx);
     } catch (e) {
         console.log(`type: ${job.type}, send a2:`, args);
@@ -582,9 +571,9 @@ async function callArbitrageByJob(job, callback) {
         }
         return;
     }
-    // if (callback) {
-    //     await callback(null, tx);
-    // }
+    if (callback) {
+        await callback(null, tx);
+    }
 }
 
 main();
