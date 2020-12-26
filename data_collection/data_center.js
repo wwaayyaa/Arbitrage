@@ -195,16 +195,17 @@ async function lookupMoveBricks(
 
             //step的解析，考虑滑点，计算最终产出 A。 计算交易手续费B = gas * gasPrice。要求A > B
             let [calcMaxErr, maxPrincipal, maxProfit] = calcMaxProfit(step);
-            if (calcMaxErr || maxPrincipal <= 1) {
+            if (calcMaxErr /* || maxPrincipal <= 1 */) {
                 continue;
             }
             // let principal = maxPrincipal / 2;
-            let principal = maxPrincipal - 1; // calcMaxProfit
-            let [calcErr, profit] = calcProfit(principal, step);
-            profit = profit - principal;
-            if (calcErr) {
-                continue;
-            }
+            let principal = maxPrincipal;
+            let profit = maxProfit;
+            // let [calcErr, profit] = calcProfit(principal, step);
+            // profit = profit - principal;
+            // if (calcErr) {
+            //     continue;
+            // }
 
             //如果有principal，那么再通过gasPrice计算一下手续费，就能初步估计成本了。
             let fee = 0;
@@ -316,16 +317,17 @@ async function lookupTriangular(
 
                 //step的解析，考虑滑点，计算最终产出 A。 计算交易手续费B = gas * gasPrice。要求A > B
                 let [calcMaxErr, maxPrincipal, maxProfit] = calcMaxProfit(step);
-                if (calcMaxErr || maxPrincipal <= 1) {
+                if (calcMaxErr /* || maxPrincipal <= 1 */) {
                     continue;
                 }
                 // let principal = maxPrincipal / 2;
-                let principal = maxPrincipal - 1;
-                let [calcErr, profit] = calcProfit(principal, step);
-                profit = profit - principal;
-                if (calcErr) {
-                    continue;
-                }
+                let principal = maxPrincipal;
+                let profit = maxProfit;
+                // let [calcErr, profit] = calcProfit(principal, step);
+                // profit = profit - principal;
+                // if (calcErr) {
+                //     continue;
+                // }
 
                 //如果有principal，那么再通过gasPrice计算一下手续费，就能初步估计成本了。
                 let fee = 0;
@@ -407,7 +409,7 @@ function calcProfit(/* int 本金 */principal, /*[]*/steps) {
 function calcMaxProfit(/* [] */steps) {
     let principal = 0, lastProfit = 0;
     // for (let _p of [1, 2, 4, 6, 8, 10, 12, 15, 20]) {
-    for (let _p of [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 7, 8, 10, 12]) {
+    for (let _p of [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 7, 8, 10, 11]) {
         let [err, _back] = calcProfit(_p, steps);
         if (err) {
             console.error(`calcMaxProfit error: `, err);
