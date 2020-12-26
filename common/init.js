@@ -34,7 +34,7 @@ class init {
 
     getArbitrage() {
         if (process.env.APP_ENV == 'production') {
-            return {address: process.env.CONTRACT_ADDRESS, abi: cc.arbitrage.abi};
+            return {address: process.env.CONTRACT_ADDRESS, abi: ca.Arbitrage.abi};
         } else {
             return {address: ca.Arbitrage.address, abi: ca.Arbitrage.abi};
         }
