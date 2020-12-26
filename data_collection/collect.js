@@ -128,8 +128,7 @@ async function cefiCrawler(quote, socket) {
 
 async function main() {
     common.memoryInfoForever(60000);
-    let tokens = await db.getTokensKeyByToken();
-    gTokens = tokens;
+    gTokens = await db.getTokensKeyByToken();;
 
     //init socket
     let socket = ioc('http://localhost:2077');
