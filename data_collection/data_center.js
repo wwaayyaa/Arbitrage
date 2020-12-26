@@ -198,7 +198,8 @@ async function lookupMoveBricks(
             if (calcMaxErr || maxPrincipal <= 1) {
                 continue;
             }
-            let principal = maxPrincipal / 2;
+            // let principal = maxPrincipal / 2;
+            let principal = maxPrincipal - 1; // calcMaxProfit
             let [calcErr, profit] = calcProfit(principal, step);
             profit = profit - principal;
             if (calcErr) {
@@ -208,7 +209,7 @@ async function lookupMoveBricks(
             //如果有principal，那么再通过gasPrice计算一下手续费，就能初步估计成本了。
             let fee = 0;
             if (principal > 0) {
-                fee = new BN(gGasPrice).times("1.2").times(GAS).times(2).div(new BN(10).pow(18)).toFixed(18);
+                fee = new BN(gGasPrice).times("1.1").times(GAS).times(2).div(new BN(10).pow(18)).toFixed(18);
                 profit = profit - fee;
             } else {
                 //不保存完全无法盈利的数据
@@ -267,7 +268,7 @@ async function lookupTriangular(
             continue;
         }
 
-        let rateT = 0.01;
+        let rateT = 0.02;
         for (let price1 of prices1) {
             for (let price3 of prices3) {
                 let rate;
@@ -318,7 +319,8 @@ async function lookupTriangular(
                 if (calcMaxErr || maxPrincipal <= 1) {
                     continue;
                 }
-                let principal = maxPrincipal / 2;
+                // let principal = maxPrincipal / 2;
+                let principal = maxPrincipal - 1;
                 let [calcErr, profit] = calcProfit(principal, step);
                 profit = profit - principal;
                 if (calcErr) {
@@ -328,7 +330,7 @@ async function lookupTriangular(
                 //如果有principal，那么再通过gasPrice计算一下手续费，就能初步估计成本了。
                 let fee = 0;
                 if (principal > 0) {
-                    fee = new BN(gGasPrice).times("1.2").times(GAS).times(3).div(new BN(10).pow(18)).toFixed(18);
+                    fee = new BN(gGasPrice).times("1.1").times(GAS).times(3).div(new BN(10).pow(18)).toFixed(18);
                     profit = profit - fee;
                 } else {
                     //不保存完全无法盈利的数据
@@ -404,7 +406,8 @@ function calcProfit(/* int 本金 */principal, /*[]*/steps) {
 
 function calcMaxProfit(/* [] */steps) {
     let principal = 0, lastProfit = 0;
-    for (let _p of [1, 2, 4, 6, 8, 10, 12, 15, 20]) {
+    // for (let _p of [1, 2, 4, 6, 8, 10, 12, 15, 20]) {
+    for (let _p of [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 7, 8, 10, 12]) {
         let [err, _back] = calcProfit(_p, steps);
         if (err) {
             console.error(`calcMaxProfit error: `, err);
@@ -443,8 +446,8 @@ async function jobConsumer() {
         }
 
         if (job.principal == 0
-            || (job.type == 'move_bricks' && job.profit < 0.005)
-            || (job.type == 'triangular_arbitrage' && job.profit < 0.005)) {
+            || (job.type == 'move_bricks' && job.profit < 0.001)
+            || (job.type == 'triangular_arbitrage' && job.profit < 0.002)) {
             //没有执行价值
             db.updateArbitrageJob(job.uuid, JOB_STATUS_UNWORTHY, job.txFee, job.profit, "");
             continue;
@@ -545,7 +548,7 @@ async function callArbitrageByJob(job, callback) {
     let arbitrage = new web3.eth.Contract(arbitrageInfo.abi, arbitrageInfo.address);
     let tx = null;
     try {
-        let executeGasPrice = Web3.utils.toWei(new BN(gGasPrice).times("1.2").div(Web3.utils.toWei('1', 'gwei')).toFixed(0), 'gwei');
+        let executeGasPrice = Web3.utils.toWei(new BN(gGasPrice).times("1.1").div(Web3.utils.toWei('1', 'gwei')).toFixed(0), 'gwei');
         c(`now gasPrice: ${gGasPrice}, executeGasPrice: ${executeGasPrice}`);
 
         // let arbitrageLocal = new web3Local.eth.Contract(arbitrageInfo.abi, arbitrageInfo.address);
