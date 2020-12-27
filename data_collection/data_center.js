@@ -217,7 +217,6 @@ async function lookupMoveBricks(
                 continue;
             }
 
-
             let job = {
                 uuid: uuidv4(),
                 type: jobType,
@@ -227,7 +226,7 @@ async function lookupMoveBricks(
                 status: 0,
                 principal: principal,
                 txFee: fee,
-                profit: principal > 0 ? profit : failProfit,
+                profit: profit,
                 txHash: "",
             };
 
@@ -409,7 +408,7 @@ function calcProfit(/* int 本金 */principal, /*[]*/steps) {
 function calcMaxProfit(/* [] */steps) {
     let principal = 0, lastProfit = 0;
     // for (let _p of [1, 2, 4, 6, 8, 10, 12, 15, 20]) {
-    for (let _p of [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 7, 8, 10, 11]) {
+    for (let _p of [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]) {
         let [err, _back] = calcProfit(_p, steps);
         if (err) {
             console.error(`calcMaxProfit error: `, err);
@@ -547,7 +546,6 @@ async function callArbitrageByJob(job, callback) {
     //     return;
     // }
 
-    let arbitrage = new web3.eth.Contract(arbitrageInfo.abi, arbitrageInfo.address);
     let tx = null;
     try {
         let executeGasPrice = Web3.utils.toWei(new BN(gGasPrice).times("1.2").div(Web3.utils.toWei('1', 'gwei')).toFixed(0), 'gwei');
@@ -555,17 +553,18 @@ async function callArbitrageByJob(job, callback) {
 
         // let arbitrageLocal = new web3Local.eth.Contract(arbitrageInfo.abi, arbitrageInfo.address);
         // let estimateGas = await arbitrageLocal.methods
-        //     .a2(...args)
-        //     .estimateGas({gas: GAS});
+        //     .aN(...args)
+        //     .estimateGas({gas: GAS * (args[2].length + 2)});
         // c(`estimateGas : ${estimateGas}`);
-        // if (estimateGas == GAS) {
-        //     throw new Error(`gas exceed ${GAS}`);
+        // if (estimateGas == GAS * args[2].length) {
+        //     throw new Error(`gas exceed ${estimateGas}`);
         // }
 
+        let arbitrage = new web3.eth.Contract(arbitrageInfo.abi, arbitrageInfo.address);
         c(`[aN] type: ${job.type}, args:`, args);
         tx = await arbitrage.methods
             .aN(...args)
-            .send({from: acc.address, gas: GAS * args[2].length, gasPrice: executeGasPrice});
+            .send({from: acc.address, gas: GAS * (args[2].length + 2), gasPrice: executeGasPrice});
 
         console.log(`txinfo`, tx);
     } catch (e) {
