@@ -115,7 +115,7 @@ io.on('connection', socket => {
 
         /* 此处是各种套利模型判断价格是否达到触发值的地方，未来可能要剥离 */
         await lookupMoveBricks(socket, data);
-        // lookupTriangular(socket, data);
+        lookupTriangular(socket, data);
     });
 
     socket.on('init', data => {
@@ -268,7 +268,7 @@ async function lookupTriangular(
             continue;
         }
 
-        let rateT = 0.02;
+        let rateT = 0.03;
         for (let price1 of prices1) {
             for (let price3 of prices3) {
                 let rate;
