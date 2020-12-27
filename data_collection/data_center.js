@@ -114,8 +114,8 @@ io.on('connection', socket => {
         // socket.broadcast.emit('new_prices', data);
 
         /* 此处是各种套利模型判断价格是否达到触发值的地方，未来可能要剥离 */
-        lookupMoveBricks(socket, data);
-        lookupTriangular(socket, data);
+        await lookupMoveBricks(socket, data);
+        // lookupTriangular(socket, data);
     });
 
     socket.on('init', data => {
@@ -510,7 +510,7 @@ async function jobConsumer() {
 }
 
 async function callArbitrageByJob(job, callback) {
-    let args = [job.height + 1, gBlock.timestamp + 300, []];
+    let args = [job.height + 2, gBlock.timestamp + 300, []];
     // let args = [job.height + 10, 3333333333, []];
     for (let i = 0; i < job.step.length; i++) {
         let step = job.step[i];
@@ -548,7 +548,7 @@ async function callArbitrageByJob(job, callback) {
 
     let tx = null;
     try {
-        let executeGasPrice = Web3.utils.toWei(new BN(gGasPrice).times("1.2").div(Web3.utils.toWei('1', 'gwei')).toFixed(0), 'gwei');
+        let executeGasPrice = Web3.utils.toWei(new BN(gGasPrice).times("1.1").div(Web3.utils.toWei('1', 'gwei')).toFixed(0), 'gwei');
         c(`now gasPrice: ${gGasPrice}, executeGasPrice: ${executeGasPrice}`);
 
         // let arbitrageLocal = new web3Local.eth.Contract(arbitrageInfo.abi, arbitrageInfo.address);
