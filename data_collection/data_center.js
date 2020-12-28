@@ -210,7 +210,7 @@ async function lookupMoveBricks(
             //如果有principal，那么再通过gasPrice计算一下手续费，就能初步估计成本了。
             let fee = 0;
             if (principal > 0) {
-                fee = new BN(gGasPrice).times("1.0").times(GAS).times(2).div(new BN(10).pow(18)).toFixed(18);
+                fee = new BN(gGasPrice).times("1.1").times(GAS).times(2).div(new BN(10).pow(18)).toFixed(18);
                 profit = profit - fee;
             } else {
                 //不保存完全无法盈利的数据
@@ -331,7 +331,7 @@ async function lookupTriangular(
                 //如果有principal，那么再通过gasPrice计算一下手续费，就能初步估计成本了。
                 let fee = 0;
                 if (principal > 0) {
-                    fee = new BN(gGasPrice).times("1.0").times(GAS).times(3).div(new BN(10).pow(18)).toFixed(18);
+                    fee = new BN(gGasPrice).times("1.1").times(GAS).times(3).div(new BN(10).pow(18)).toFixed(18);
                     profit = profit - fee;
                 } else {
                     //不保存完全无法盈利的数据
@@ -407,8 +407,7 @@ function calcProfit(/* int 本金 */principal, /*[]*/steps) {
 
 function calcMaxProfit(/* [] */steps) {
     let principal = 0, lastProfit = 0;
-    // for (let _p of [1, 2, 4, 6, 8, 10, 12, 15, 20]) {
-    for (let _p of [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]) {
+    for (let _p = 1; _p <= 17; _p++) {
         let [err, _back] = calcProfit(_p, steps);
         if (err) {
             console.error(`calcMaxProfit error: `, err);
@@ -548,7 +547,7 @@ async function callArbitrageByJob(job, callback) {
 
     let tx = null;
     try {
-        let executeGasPrice = Web3.utils.toWei(new BN(gGasPrice).times("1.1").div(Web3.utils.toWei('1', 'gwei')).toFixed(0), 'gwei');
+        let executeGasPrice = Web3.utils.toWei(new BN(gGasPrice).times("1.2").div(Web3.utils.toWei('1', 'gwei')).toFixed(0), 'gwei');
         c(`now gasPrice: ${gGasPrice}, executeGasPrice: ${executeGasPrice}`);
 
         // let arbitrageLocal = new web3Local.eth.Contract(arbitrageInfo.abi, arbitrageInfo.address);
