@@ -13,6 +13,7 @@
     "dayjs": "^1.9.7",
     "decimal.js": "^10.2.1",
     "dotenv": "^8.2.0",
+    "ethereum-input-data-decoder": "^0.3.1",
     "lodash": "^4.17.20",
     "lodash.js": "^0.0.1-security",
     "mysql2": "^2.2.5",
