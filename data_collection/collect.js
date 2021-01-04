@@ -147,7 +147,7 @@ async function main() {
     let cefiQuote = quote.filter(v => v.protocol == 'cefi');
     let defiQuote = quote.filter(v => v.protocol != 'cefi');
     //cefi 轮询或socket，defi监控出块
-    // cefiCrawler(cefiQuote, socket);
+    cefiCrawler(cefiQuote, socket);
     defiCrawler(defiQuote, socket);
 }
 
