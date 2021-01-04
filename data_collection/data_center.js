@@ -62,6 +62,16 @@ class Prices {
         return ret;
     };
 
+    findByQuoteABProtocol(quoteA, quoteB, protocol) {
+        let ret = [];
+        for (let key in this.prices) {
+            if (this.prices[key].protocol == protocol && this.prices[key].quoteA == quoteA && this.prices[key].quoteB == quoteB) {
+                ret.push(this.prices[key]);
+            }
+        }
+        return ret;
+    };
+
     getMaster() {
         let ret = [];
         for (let key in this.prices) {
@@ -106,7 +116,7 @@ io.on('connection', socket => {
 
     /* 获取上报的价格数据 */
     socket.on('collected_v3', async (
-        /* [{protocol, exchange, quoteA, quoteB, price, height,
+        /* [{protocol, exchange, quoteA, quoteB, price, height, minute,
          master, balanceA, balanceB, weightA, weightB}] */
         data
     ) => {
@@ -114,8 +124,9 @@ io.on('connection', socket => {
         // socket.broadcast.emit('new_prices', data);
 
         /* 此处是各种套利模型判断价格是否达到触发值的地方，未来可能要剥离 */
-        await lookupMoveBricks(socket, data);
-        lookupTriangular(socket, data);
+        // await lookupMoveBricks(socket, data);
+        // lookupTriangular(socket, data);
+        lookupDCMoveBricks(socket, data);
     });
 
     socket.on('init', data => {
@@ -130,7 +141,9 @@ io.on('connection', socket => {
     });
 });
 
-/*通过价格发现套利机会*/
+/**
+ * 通过价格发现套利机会
+ * */
 async function lookupMoveBricks(
     socket,
     /* [{protocol, exchange, quoteA, quoteB, price, height,
@@ -362,6 +375,124 @@ async function lookupTriangular(
             }
         }
 
+    }
+}
+
+/**
+ * 在cex、dex之间套利
+ * @param socket
+ * @param data
+ * @returns {Promise<void>}
+ */
+async function lookupDCMoveBricks(
+    socket,
+    /* [{protocol, exchange, quoteA, quoteB, price, height, minute,
+         master, balanceA, balanceB, weightA, weightB}] */
+    data) {
+    for (let i = 0; i < data.length; i++) {
+        let p = data[i];
+        let nowMinute = new dayjs().format("YYYYMMDDHHmm");
+        if (!p.master || (p.protocol != 'cefi' && p.height != gBlock.height) || (p.protocol == 'cefi' && p.minute + 1 >= nowMinute - 1)) {
+            continue;
+        }
+        let pairs = gPrices.findByQuoteAB(p.quoteA, p.quoteB);
+        for (let j = 0; j < pairs.length; j++) {
+            let pair = pairs[j];
+            if ((p.protocol == 'cefi' && pair.protocol == 'cefi') || (p.protocol != 'cefi' && pair.protocol != 'cefi')) {
+                continue;
+            }
+            //对比差价
+            let rateT = 0.015;
+            let rate = Math.abs(p.price / pair.price - 1);
+            if (rate < rateT) {
+                continue;
+            }
+            //大于套利阈值
+            /*
+                step 生成分三种情况。
+                eth在前
+                eth在后
+                无eth    我们需要知道这种的数量和价差比例，但是先不做，因为套利链条太长了，手续费太高。
+             */
+            //todo
+            let step = [];
+            let jobType = 'dc_move_bricks';
+            if (p.quoteA == 'weth') {
+                let s1, s2;
+                if (p.price > pair.price) {
+                    s1 = _.cloneDeep(p);
+                    s2 = _.cloneDeep(pair);
+                } else {
+                    s1 = _.cloneDeep(pair);
+                    s2 = _.cloneDeep(p);
+                }
+                s1.type = 'sell';
+                s2.type = 'buy';
+                step.push(s1, s2);
+            } else if (p.quoteB == 'weth') {
+                let s1, s2;
+                if (p.price > pair.price) {
+                    s1 = _.cloneDeep(pair);
+                    s2 = _.cloneDeep(p);
+                } else {
+                    s1 = _.cloneDeep(p);
+                    s2 = _.cloneDeep(pair);
+                }
+                s1.type = 'buy';
+                s2.type = 'sell';
+                step.push(s1, s2);
+            } else {
+                jobType = 'triple_move_bricks';
+                //TODO 暂时忽略 三方搬砖套利
+                continue;
+            }
+
+            //step的解析，考虑滑点，计算最终产出 A。 计算交易手续费B = gas * gasPrice。要求A > B
+            let [calcMaxErr, maxPrincipal, maxProfit] = calcMaxProfit(step);
+            if (calcMaxErr /* || maxPrincipal <= 1 */) {
+                continue;
+            }
+            // let principal = maxPrincipal / 2;
+            let principal = maxPrincipal;
+            let profit = maxProfit;
+            // let [calcErr, profit] = calcProfit(principal, step);
+            // profit = profit - principal;
+            // if (calcErr) {
+            //     continue;
+            // }
+
+            //如果有principal，那么再通过gasPrice计算一下手续费，就能初步估计成本了。
+            let fee = 0;
+            if (principal > 0) {
+                fee = new BN(gGasPrice).times("1.1").times(GAS).times(2).div(new BN(10).pow(18)).toFixed(18);
+                profit = profit - fee;
+            } else {
+                //不保存完全无法盈利的数据
+                continue;
+            }
+
+            let job = {
+                uuid: uuidv4(),
+                type: jobType,
+                height: p.height,
+                step: step,
+                quote: `${p.quoteA}/${p.quoteB}`,
+                status: 0,
+                principal: principal,
+                txFee: fee,
+                profit: profit,
+                txHash: "",
+            };
+
+            //push & save & execute
+            socket.broadcast.emit('new_arbitrage', job);
+            let [err, ok] = await db.newArbitrageJob(job.uuid, job.type, job.height, JSON.stringify(job.step), job.quote, rate, job.status, job.principal, job.txFee, job.profit);
+            if (err) {
+                console.error(`newArbitrageJob error: `, err);
+            }
+
+            gJobs.push(job);
+        }
     }
 }
 
