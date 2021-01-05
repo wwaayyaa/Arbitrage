@@ -112,4 +112,13 @@ exports.shuffle = function (array) {
     }
 
     return array;
-}
+};
+exports.addressEqual = function (a, b) {
+    if (a.substring(0, 2) == '0x') {
+        a = a.substring(2, a.length);
+    }
+    if (b.substring(0, 2) == '0x') {
+        b = b.substring(2, b.length);
+    }
+    return a === b;
+};
