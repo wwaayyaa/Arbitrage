@@ -107,41 +107,9 @@ const gMempool = new Mempool();
 
 async function main() {
     common.memoryInfoForever(30000);
-    // gMempool.add({
-    //     "hash": "0x73252518a38f50443e6c95d7170a433ad7ea0e6a0a2f161c54b054874a44cf9d",
-    //     "timestamp": 1609408585,
-    //     "from": "0x9A55Dc9CcDD9a049FD53494dC2C4Ee868b3DBfC1",
-    //     "to": "0x00000000DC0E59517a8114348d9130e7d3835832",
-    //     "nonce": 6665,
-    //     "value": "0",
-    //     "gasPrice": "4985259463724",
-    //     "input": "0x7b0b426616e96514f30067f4019e93837e81484162a4199f80ca31d4dbbaed40d7a1ee304ac439fb9c51a49899781de537fd766718f0954bc470963add309d21b7faa1f95298c13e3c99530e3e476af4653ed353b215ea98183502b4ca58dcf62911b09b"
-    // });
-    // gMempool.add({
-    //     "hash": "0x2e4bda018bcfb572c73192526820fa4463afe1fc1bab507a7587fdca450d3abf",
-    //     "timestamp": 1609408577,
-    //     "from": "0x9A55Dc9CcDD9a049FD53494dC2C4Ee868b3DBfC1",
-    //     "to": "0x00000000DC0E59517a8114348d9130e7d3835832",
-    //     "nonce": 6665,
-    //     "value": "0",
-    //     "gasPrice": "1315883089952",
-    //     "input": "0x7b0b426616e96514f30067f4019e93837e81484162a4199f80ca31d4dbbaed40d7a1ee304ac439fb9c51a49899781de537fd766718f0954bc470963add309d21b7faa1f95298c13e3c99530e3e476af4653ed353b215ea98183502b4ca58dcf62911b09b"
-    // });
-    // gMempool.add({
-    //     "hash": "0x52f9c7bd74de51a57c80097ec944ca3b936a67d329e631c5f43b2e3f8a069dd3",
-    //     "timestamp": 1609408576,
-    //     "from": "0x9A55Dc9CcDD9a049FD53494dC2C4Ee868b3DBfC1",
-    //     "to": "0x00000000DC0E59517a8114348d9130e7d3835832",
-    //     "nonce": 6666,
-    //     "value": "0",
-    //     "gasPrice": "750740471840",
-    //     "input": "0x7b0b426616e96514f30067f4019e93837e81484162a4199f80ca31d4dbbaed40d7a1ee304ac439fb9c51a49899781de537fd766718f0954bc470963add309d21b7faa1f95298c13e3c99530e3e476af4653ed353b215ea98183502b4ca58dcf62911b09b"
-    // });
-    // gMempool.del('0x2e4bda018bcfb572c73192526820fa4463afe1fc1bab507a7587fdca450d3abf');
-    // console.log(gMempool);
     subscribe();
     printTxInfo();
-    snapshot();
+    // snapshot();
 
     // await common.sleep(30 * 1000);
     doubleTeam();
@@ -150,7 +118,7 @@ async function main() {
 async function printTxInfo() {
     while (true) {
         console.log(`[TXs] txs-count: ${gMempool.length()}, from-count: ${Object.keys(gMempool.accTxs).length}`);
-        await common.sleep(5000);
+        await common.sleep(60000);
     }
 }
 
@@ -290,7 +258,7 @@ async function checkDoubleTeam(tx) {
     if (!common.addressEqual(path0, cc.token.weth.address) /* || !common.addressEqual(path1, cc.token.dai.address) */) {
         return false;
     }
-    if (web3.utils.fromWei(tx.value, 'ether') < 5) {
+    if (web3.utils.fromWei(tx.value, 'ether') < 50) {
         return false;
     }
     tx.decodeData = result;
@@ -343,7 +311,7 @@ async function doubleTeam() {
             //1 调用合约，买币  [amountIn, routerAddress, [from, to]]
             async function one() {
                 try {
-                    let args = ['31515416', '3333333333', web3.utils.toWei('0.2', 'ether'), cc.exchange.uniswap.router02.address, '0x' + from, '0x' + to];
+                    let args = ['31515416', '3333333333', web3.utils.toWei('5', 'ether'), cc.exchange.uniswap.router02.address, '0x' + from, '0x' + to];
                     c('args1', args, new BN(gJob.gasPrice).plus('10000000000').toFixed(0), nonce);
                     let x = await arbitrage.methods
                         .doubleTeam(...args)
@@ -365,13 +333,13 @@ async function doubleTeam() {
         //2 卖币 [amountIn, routerAddress, [from, to]]
         try {
             let args = ['31515416', '3333333333', '0', cc.exchange.uniswap.router02.address, '0x' + to, '0x' + from];
-            c('args2', args, new BN(gJob.gasPrice).minus('10000000000').toFixed(0), nonce + 1);
+            c('args2', args, new BN(gJob.gasPrice).minus('1000000000').toFixed(0), nonce + 1);
             let x = await arbitrage.methods
                 .doubleTeam(...args)
                 .send({
                     from: acc.address,
                     gas: 300000,
-                    gasPrice: new BN(gJob.gasPrice).minus('10000000000').toFixed(0),
+                    gasPrice: new BN(gJob.gasPrice).minus('1000000000').toFixed(0),
                     nonce: nonce + 1
                 });
             c('tx', x);
