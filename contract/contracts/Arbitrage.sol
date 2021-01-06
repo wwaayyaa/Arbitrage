@@ -118,6 +118,7 @@ contract Arbitrage is Withdrawable {
             amountIn = IERC20(from).balanceOf(address(this));
         }
         require(amountIn > 0, "no");
+        IERC20(from).approve(router, amountIn);
 
         delete path;
         //3000+gas
