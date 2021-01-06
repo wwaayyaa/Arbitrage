@@ -11,8 +11,10 @@
  */
 const init = require('../common/init').init();
 const db = init.initDB();
-const {acc} = init.initWeb3AndAccount();
-const web3 = init.initWSWeb3();
+const {web3, acc} = init.initWeb3AndAccount();
+const web3WS = init.initWSWeb3();
+const arbitrageInfo = init.getArbitrage();
+const arbitrage = new web3.eth.Contract(arbitrageInfo.abi, arbitrageInfo.address)
 const _ = require('lodash');
 
 const InputDataDecoder = require('ethereum-input-data-decoder');
@@ -164,7 +166,7 @@ async function snapshot() {
 }
 
 async function subscribe() {
-    web3.eth.subscribe('pendingTransactions', async (e, hash) => {
+    web3WS.eth.subscribe('pendingTransactions', async (e, hash) => {
         // 未确认交易
         if (e) {
             console.error('pendingTransactions error:', e);
@@ -177,7 +179,7 @@ async function subscribe() {
         };
         // gMempool.add(tx);
         //获取详细信息
-        web3.eth.getTransaction(hash, async (err, _tx) => {
+        web3WS.eth.getTransaction(hash, async (err, _tx) => {
             if (err) {
                 console.log('getTransaction error: ', err);
                 return;
@@ -208,22 +210,22 @@ async function subscribe() {
     });
 
 
-    web3.eth.subscribe('logs', {}, (e, d) => {
-        //每次出块后的变动log
-        if (e) {
-            console.error('logs error:', e);
-        }
-        gMempool.del(d.transactionHash);
-    });
+    // web3.eth.subscribe('logs', {}, (e, d) => {
+    //     //每次出块后的变动log
+    //     if (e) {
+    //         console.error('logs error:', e);
+    //     }
+    //     gMempool.del(d.transactionHash);
+    // });
 
 
-    web3.eth.subscribe('newBlockHeaders', async (e, d) => {
+    web3WS.eth.subscribe('newBlockHeaders', async (e, d) => {
         //新块的头信息
         if (e) {
             console.error('newBlockHeaders error:', e);
         }
         // c(d);
-        let block = await web3.eth.getBlock(d.number, true);
+        let block = await web3WS.eth.getBlock(d.number, true);
         for (let tx of block.transactions) {
             gMempool.delByDetail(tx);
         }
@@ -281,7 +283,10 @@ async function checkDoubleTeam(tx) {
     if (!path0 || !path1) {
         return false;
     }
-    if (!common.addressEqual(path0, cc.token.weth.address) || !common.addressEqual(path1, cc.token.dai.address)) {
+    if (!common.addressEqual(path0, cc.token.weth.address) /* || !common.addressEqual(path1, cc.token.dai.address) */) {
+        return false;
+    }
+    if (web3.utils.fromWei(tx.value, 'ether') < 0.1) {
         return false;
     }
     tx.decodeData = result;
@@ -317,25 +322,42 @@ async function doubleTeam() {
             continue;
         }
         c('doubleTeam begin', gJob);
-        //doing 需要知道tx的入参数，然后根据tx的信息，发出两个交易
-        if (web3.utils.fromWei(gJob.value, 'ether') < 10) {
-            c('value less than 10ETH, skip');
-            gJob = null;
-            await common.sleep(50);
-            continue;
-        }
 
-        if (gJob.gasPrice > '150000000000'){
+        if (web3.utils.fromWei(gJob.gasPrice, 'gwei') > 150) {
             c('gasPrice too large, skip');
             gJob = null;
             await common.sleep(50);
             continue;
         }
 
+        let nonce = await web3WS.eth.getTransactionCount(acc.address);
+        let [from, to] = gJob.decodeData.inputs[1];
+
         //发出两个交易
         //1 调用合约，买币  [amountIn, routerAddress, [from, to]]
-
+        try {
+            let args = ['31515416', '3333333333', web3.utils.toWei('5', 'ether'), cc.exchange.uniswap.router02.address, from, to];
+            c('args1', args, new BN(gJob.gasPrice).plus('10000000000'), nonce);
+            // let x = await arbitrage.methods
+            //     .doubleTeam(...args)
+            //     .send({from: acc.address, gas: 300000, gasPrice: new BN(gJob.gasPrice).plus('10000000000'), nonce: nonce});
+            // c('tx', x);
+        } catch (e) {
+            c("doubleTeam1 error: ", e);
+            process.exit();
+        }
         //2 卖币 [amountIn, routerAddress, [from, to]]
+        try {
+            let args = ['31515416', '3333333333', '0', cc.exchange.uniswap.router02.address, to, from];
+            c('args2', args, new BN(gJob.gasPrice).minus('10000000000'), nonce + 1);
+            // let x = await arbitrage.methods
+            //     .doubleTeam(...args)
+            //     .send({from: acc.address, gas: 300000, gasPrice: new BN(gJob.gasPrice).minus('10000000000'), nonce: nonce + 1});
+            // c('tx', x);
+        } catch (e) {
+            c("doubleTeam2 error: ", e);
+            process.exit();
+        }
 
         gJob = null;
     }
