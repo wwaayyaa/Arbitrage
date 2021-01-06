@@ -258,7 +258,7 @@ async function checkDoubleTeam(tx) {
     if (!common.addressEqual(path0, cc.token.weth.address) /* || !common.addressEqual(path1, cc.token.dai.address) */) {
         return false;
     }
-    if (web3.utils.fromWei(tx.value, 'ether') < 50) {
+    if (web3.utils.fromWei(tx.value, 'ether') < 30) {
         return false;
     }
     tx.decodeData = result;
@@ -296,7 +296,7 @@ async function doubleTeam() {
         }
         c('doubleTeam begin', gJob);
 
-        if (web3.utils.fromWei(gJob.gasPrice, 'gwei') > 150) {
+        if (web3.utils.fromWei(gJob.gasPrice, 'gwei') > 200) {
             c('gasPrice too large, skip');
             gJob = null;
             await common.sleep(50);
@@ -311,7 +311,7 @@ async function doubleTeam() {
             //1 调用合约，买币  [amountIn, routerAddress, [from, to]]
             async function one() {
                 try {
-                    let args = ['31515416', '3333333333', web3.utils.toWei('5', 'ether'), cc.exchange.uniswap.router02.address, '0x' + from, '0x' + to];
+                    let args = ['31515416', '3333333333', web3.utils.toWei('4', 'ether'), cc.exchange.uniswap.router02.address, '0x' + from, '0x' + to];
                     c('args1', args, new BN(gJob.gasPrice).plus('10000000000').toFixed(0), nonce);
                     let x = await arbitrage.methods
                         .doubleTeam(...args)
