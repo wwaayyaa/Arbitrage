@@ -143,14 +143,14 @@ async function main() {
     printTxInfo();
     snapshot();
 
-    await common.sleep(30 * 1000);
+    // await common.sleep(30 * 1000);
     doubleTeam();
 }
 
 async function printTxInfo() {
     while (true) {
         console.log(`[TXs] txs-count: ${gMempool.length()}, from-count: ${Object.keys(gMempool.accTxs).length}`);
-        await common.sleep(1500);
+        await common.sleep(5000);
     }
 }
 
@@ -279,14 +279,18 @@ async function checkDoubleTeam(tx) {
         return false;
     }
 
-    c(`path0, path1`, path0, path1)
+    if (common.addressEqual(path1, '0xdac17f958d2ee523a2206206994597c13d831ec7')) { // usdt有些问题
+        return false;
+    }
+
+    // c(`path0, path1`, path0, path1)
     if (!path0 || !path1) {
         return false;
     }
     if (!common.addressEqual(path0, cc.token.weth.address) /* || !common.addressEqual(path1, cc.token.dai.address) */) {
         return false;
     }
-    if (web3.utils.fromWei(tx.value, 'ether') < 0.1) {
+    if (web3.utils.fromWei(tx.value, 'ether') < 5) {
         return false;
     }
     tx.decodeData = result;
@@ -299,7 +303,7 @@ async function doubleTeam() {
         blockNumber: null,
         from: '0x125BF69C61AF3c60ca1c0dF5bBbCe503CfF7B1ae',
         gas: 500000,
-        gasPrice: '155039062500',
+        gasPrice: '115039062500',
         hash: '0x38c6168a12820d8f452f8234f505ed206d2cd6f841d6676a29f41aa29cfacdcf',
         input: '0xfb3bdb41000000000000000000000000000000000000000000000984680fcc378b8000000000000000000000000000000000000000000000000000000000000000000080000000000000000000000000125bf69c61af3c60ca1c0df5bbbce503cff7b1ae000000000000000000000000000000000000000000000000000000005ff4411f0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc20000000000000000000000006b175474e89094c44da98b954eedeac495271d0f',
         nonce: 3696,
@@ -312,10 +316,11 @@ async function doubleTeam() {
         decodeData: {
             method: 'swapETHForExactTokens',
             types: ['uint256', 'address[]', 'address', 'uint256'],
-            inputs: [[BN], [Array], '125bf69c61af3c60ca1c0df5bbbce503cff7b1ae', [BN]],
+            inputs: [[BN], ['c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', '6b175474e89094c44da98b954eedeac495271d0f'], '125bf69c61af3c60ca1c0df5bbbce503cff7b1ae', [BN]],
             names: ['amountOut', 'path', 'to', 'deadline']
         }
     };
+
     while (true) {
         if (!gJob) {
             await common.sleep(50);
@@ -332,28 +337,44 @@ async function doubleTeam() {
 
         let nonce = await web3WS.eth.getTransactionCount(acc.address);
         let [from, to] = gJob.decodeData.inputs[1];
+            // c(from, to);
 
-        //发出两个交易
-        //1 调用合约，买币  [amountIn, routerAddress, [from, to]]
-        try {
-            let args = ['31515416', '3333333333', web3.utils.toWei('5', 'ether'), cc.exchange.uniswap.router02.address, from, to];
-            c('args1', args, new BN(gJob.gasPrice).plus('10000000000'), nonce);
-            // let x = await arbitrage.methods
-            //     .doubleTeam(...args)
-            //     .send({from: acc.address, gas: 300000, gasPrice: new BN(gJob.gasPrice).plus('10000000000'), nonce: nonce});
-            // c('tx', x);
-        } catch (e) {
-            c("doubleTeam1 error: ", e);
-            process.exit();
-        }
+            //发出两个交易
+            //1 调用合约，买币  [amountIn, routerAddress, [from, to]]
+            async function one() {
+                try {
+                    let args = ['31515416', '3333333333', web3.utils.toWei('0.2', 'ether'), cc.exchange.uniswap.router02.address, '0x' + from, '0x' + to];
+                    c('args1', args, new BN(gJob.gasPrice).plus('10000000000').toFixed(0), nonce);
+                    let x = await arbitrage.methods
+                        .doubleTeam(...args)
+                        .send({
+                            from: acc.address,
+                            gas: 300000,
+                            gasPrice: new BN(gJob.gasPrice).plus('10000000000').toFixed(0),
+                            nonce: nonce
+                        });
+                    c('tx', x);
+                } catch (e) {
+                    c("doubleTeam1 error: ", e);
+                    process.exit();
+                }
+            }
+
+        one()
+        await common.sleep(100);
         //2 卖币 [amountIn, routerAddress, [from, to]]
         try {
-            let args = ['31515416', '3333333333', '0', cc.exchange.uniswap.router02.address, to, from];
-            c('args2', args, new BN(gJob.gasPrice).minus('10000000000'), nonce + 1);
-            // let x = await arbitrage.methods
-            //     .doubleTeam(...args)
-            //     .send({from: acc.address, gas: 300000, gasPrice: new BN(gJob.gasPrice).minus('10000000000'), nonce: nonce + 1});
-            // c('tx', x);
+            let args = ['31515416', '3333333333', '0', cc.exchange.uniswap.router02.address, '0x' + to, '0x' + from];
+            c('args2', args, new BN(gJob.gasPrice).minus('10000000000').toFixed(0), nonce + 1);
+            let x = await arbitrage.methods
+                .doubleTeam(...args)
+                .send({
+                    from: acc.address,
+                    gas: 300000,
+                    gasPrice: new BN(gJob.gasPrice).minus('10000000000').toFixed(0),
+                    nonce: nonce + 1
+                });
+            c('tx', x);
         } catch (e) {
             c("doubleTeam2 error: ", e);
             process.exit();
