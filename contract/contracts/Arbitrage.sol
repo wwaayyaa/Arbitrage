@@ -12,17 +12,17 @@ import "./utils/Withdrawable.sol";
 
 contract Arbitrage is Withdrawable {
     using SafeERC20 for IERC20;
-    event EStep(uint n);
+    //    event EStep(uint n);
 
     //协议(1 uniswap, 2 balancer)、ex（uniswap传入router地址，balancer传入pool地址）、addrfrom、addrto、amount
-    struct Step {
-        uint8 protocol;
-        address ex;
-        address addrFrom;
-        address addrTo;
-        uint amountIn;
-        uint minAmountOut;
-    }
+    //    struct Step {
+    //        uint8 protocol;
+    //        address ex;
+    //        address addrFrom;
+    //        address addrTo;
+    //        uint amountIn;
+    //        uint minAmountOut;
+    //    }
 
     address[] path;
 
@@ -32,44 +32,44 @@ contract Arbitrage is Withdrawable {
         _;
     }
 
-    function stepExecutor(uint n, uint8 protocol, address ex, address addr1, address addr2, uint amount, uint minAmountOut, uint timestamp) internal returns (uint){
-        IERC20(addr1).approve(ex, amount);
-
-        uint balanceBefore = IERC20(addr2).balanceOf(address(this));
-
-        if (protocol == 1) {
-            //这三步大约10000gas
-            delete path;
-            //3000+gas
-            path.push(addr1);
-            path.push(addr2);
-            //大概90000gas
-            IUniswapV2Router01(ex).swapExactTokensForTokens(amount, minAmountOut, path, address(this), timestamp);
-        } else if (protocol == 2) {
-            //大概92000gas
-            IBPool(ex).swapExactAmountIn(addr1, amount, addr2, minAmountOut, 999999999999999999999999999999999999999999999);
-        } else {
-            require(false, "PI-ERROR: unknown p");
-        }
-        uint balanceAfter = IERC20(addr2).balanceOf(address(this));
-        require(balanceAfter > balanceBefore, "PI-ERROR: check");
-        EStep(n);
-
-        return balanceAfter - balanceBefore;
-    }
-
-    function aN(uint height, uint deadline, Step[] memory steps) public ensure(height, deadline) {
-        uint wethBalanceBefore = IERC20(steps[0].addrFrom).balanceOf(address(this));
-        require(wethBalanceBefore > steps[0].amountIn, "PI-ERROR: insufficient");
-
-        uint balance = steps[0].amountIn;
-        for (uint i = 0; i < steps.length; i++) {
-            balance = stepExecutor(i, steps[i].protocol, steps[i].ex, steps[i].addrFrom, steps[i].addrTo, balance, steps[i].minAmountOut, deadline);
-        }
-        uint wethBalanceAfter = IERC20(steps[0].addrFrom).balanceOf(address(this));
-
-        require(wethBalanceAfter > wethBalanceBefore, "PI-ERROR: FINISH");
-    }
+    //    function stepExecutor(uint n, uint8 protocol, address ex, address addr1, address addr2, uint amount, uint minAmountOut, uint timestamp) internal returns (uint){
+    //        IERC20(addr1).approve(ex, amount);
+    //
+    //        uint balanceBefore = IERC20(addr2).balanceOf(address(this));
+    //
+    //        if (protocol == 1) {
+    //            //这三步大约10000gas
+    //            delete path;
+    //            //3000+gas
+    //            path.push(addr1);
+    //            path.push(addr2);
+    //            //大概90000gas
+    //            IUniswapV2Router01(ex).swapExactTokensForTokens(amount, minAmountOut, path, address(this), timestamp);
+    //        } else if (protocol == 2) {
+    //            //大概92000gas
+    //            IBPool(ex).swapExactAmountIn(addr1, amount, addr2, minAmountOut, 999999999999999999999999999999999999999999999);
+    //        } else {
+    //            require(false, "PI-ERROR: unknown p");
+    //        }
+    //        uint balanceAfter = IERC20(addr2).balanceOf(address(this));
+    //        require(balanceAfter > balanceBefore, "PI-ERROR: check");
+    //        EStep(n);
+    //
+    //        return balanceAfter - balanceBefore;
+    //    }
+    //
+    //    function aN(uint height, uint deadline, Step[] memory steps) public ensure(height, deadline) {
+    //        uint wethBalanceBefore = IERC20(steps[0].addrFrom).balanceOf(address(this));
+    //        require(wethBalanceBefore > steps[0].amountIn, "PI-ERROR: insufficient");
+    //
+    //        uint balance = steps[0].amountIn;
+    //        for (uint i = 0; i < steps.length; i++) {
+    //            balance = stepExecutor(i, steps[i].protocol, steps[i].ex, steps[i].addrFrom, steps[i].addrTo, balance, steps[i].minAmountOut, deadline);
+    //        }
+    //        uint wethBalanceAfter = IERC20(steps[0].addrFrom).balanceOf(address(this));
+    //
+    //        require(wethBalanceAfter > wethBalanceBefore, "PI-ERROR: FINISH");
+    //    }
 
     //    function a2(uint height,
     //        uint8 protocol1, address ex1, address addr11, address addr12, uint amount1, uint minAmountOut1,
@@ -111,6 +111,21 @@ contract Arbitrage is Withdrawable {
     //
     //        require(wethBalanceAfter > wethBalanceBefore, string(abi.encodePacked("error finish ")));
     //    }
+
+
+    function doubleTeam(uint height, uint deadline, uint amountIn, address router, address from, address to) public ensure(height, deadline) {
+        if (amountIn == 0) {
+            amountIn = IERC20(from).balanceOf(address(this));
+        }
+        require(amountIn > 0, "no");
+
+        delete path;
+        //3000+gas
+        path.push(from);
+        path.push(to);
+        //大概90000gas
+        IUniswapV2Router01(router).swapExactTokensForTokens(amountIn, 0, path, address(this), deadline);
+    }
 
     function withdrawN(address _assetAddress, uint amount) public onlyOwner {
         if (_assetAddress == ETHER) {

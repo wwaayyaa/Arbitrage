@@ -333,9 +333,9 @@ async function doubleTeam() {
         }
 
         //发出两个交易
-        //1 调用合约，买币
+        //1 调用合约，买币  [amountIn, routerAddress, [from, to]]
 
-        //2 卖币
+        //2 卖币 [amountIn, routerAddress, [from, to]]
 
         gJob = null;
     }
