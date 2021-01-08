@@ -84,7 +84,7 @@ class Mempool {
                     this.accTxs[from].splice(i, 1);
                 } else if (this.txs[_hash].nonce <= nonce) {
                     this.accTxs[from].splice(i, 1);
-                    if (_hash != tx.hash) c('delete replaced tx: ', _hash);
+                    // if (_hash != tx.hash) c('delete replaced tx: ', _hash);
                     delete this.txs[_hash];
                 }
             }
@@ -108,7 +108,7 @@ const gMempool = new Mempool();
 async function main() {
     common.memoryInfoForever(30000);
     subscribe();
-    printTxInfo();
+    // printTxInfo();
     // snapshot();
 
     // await common.sleep(30 * 1000);
@@ -145,7 +145,6 @@ async function subscribe() {
             gasPrice: 0,
             timestamp: dayjs().unix(),
         };
-        // gMempool.add(tx);
         //获取详细信息
         web3WS.eth.getTransaction(hash, async (err, _tx) => {
             if (err) {
@@ -157,18 +156,8 @@ async function subscribe() {
                 // c(`tx: ${hash} not exists`);
                 return;
             }
-            // let tx = gMempool.get(_tx.hash);
-            // if (!tx) {
-            //     return;
-            // }
-            // tx.from = _tx.from;
-            // tx.to = _tx.to;
-            // tx.nonce = _tx.nonce;
-            // tx.value = _tx.value;
-            // tx.gasPrice = _tx.gasPrice;
-            // tx.input = _tx.input;
-            // gMempool.add(tx);
-            gMempool.add(_tx);
+
+            // gMempool.add(_tx);
 
             if ((await checkDoubleTeam(_tx)) && !gJob) {
                 gJob = _.cloneDeep(_tx);
@@ -187,19 +176,19 @@ async function subscribe() {
     // });
 
 
-    web3WS.eth.subscribe('newBlockHeaders', async (e, d) => {
-        //新块的头信息
-        if (e) {
-            console.error('newBlockHeaders error:', e);
-        }
-        // c(d);
-        let block = await web3WS.eth.getBlock(d.number, true);
-        for (let tx of block.transactions) {
-            gMempool.delByDetail(tx);
-        }
-        //放在这儿太慢了，应该获取的一个就干。 寻找大户交易
-        // doubleTeam(block);
-    })
+    // web3WS.eth.subscribe('newBlockHeaders', async (e, d) => {
+    //     //新块的头信息
+    //     if (e) {
+    //         console.error('newBlockHeaders error:', e);
+    //     }
+    //     // c(d);
+    //     let block = await web3WS.eth.getBlock(d.number, true);
+    //     for (let tx of block.transactions) {
+    //         gMempool.delByDetail(tx);
+    //     }
+    //     //放在这儿太慢了，应该获取的一个就干。 寻找大户交易
+    //     // doubleTeam(block);
+    // })
 }
 
 async function checkDoubleTeam(tx) {
@@ -258,7 +247,7 @@ async function checkDoubleTeam(tx) {
     if (!common.addressEqual(path0, cc.token.weth.address) /* || !common.addressEqual(path1, cc.token.dai.address) */) {
         return false;
     }
-    if (web3.utils.fromWei(tx.value, 'ether') < 50) {
+    if (web3.utils.fromWei(tx.value, 'ether') < 200) {
         return false;
     }
     tx.decodeData = result;
