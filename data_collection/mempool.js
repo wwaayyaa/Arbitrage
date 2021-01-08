@@ -20,6 +20,8 @@ const _ = require('lodash');
 const InputDataDecoder = require('ethereum-input-data-decoder');
 
 let common = require('../common/common');
+const ding = new common.Ding(process.env.DING_KEY);
+
 let fs = require('fs');
 let BN = require('bignumber.js');
 let dayjs = require('dayjs');
@@ -247,7 +249,7 @@ async function checkDoubleTeam(tx) {
     if (!common.addressEqual(path0, cc.token.weth.address) /* || !common.addressEqual(path1, cc.token.dai.address) */) {
         return false;
     }
-    if (web3.utils.fromWei(tx.value, 'ether') < 200) {
+    if (web3.utils.fromWei(tx.value, 'ether') < 300) {
         return false;
     }
     tx.decodeData = result;
@@ -291,31 +293,32 @@ async function doubleTeam() {
             await common.sleep(50);
             continue;
         }
+        ding.ding('defi doubleTeam begin: ' + web3.utils.fromWei(gJob.value, 'ether'));
 
         let nonce = await web3WS.eth.getTransactionCount(acc.address);
         let [from, to] = gJob.decodeData.inputs[1];
-            // c(from, to);
+        // c(from, to);
 
-            //发出两个交易
-            //1 调用合约，买币  [amountIn, routerAddress, [from, to]]
-            async function one() {
-                try {
-                    let args = ['31515416', '3333333333', web3.utils.toWei('10', 'ether'), cc.exchange.uniswap.router02.address, '0x' + from, '0x' + to];
-                    c('args1', args, new BN(gJob.gasPrice).plus('10000000000').toFixed(0), nonce);
-                    let x = await arbitrage.methods
-                        .doubleTeam(...args)
-                        .send({
-                            from: acc.address,
-                            gas: 300000,
-                            gasPrice: new BN(gJob.gasPrice).plus('10000000000').toFixed(0),
-                            nonce: nonce
-                        });
-                    c('tx', x);
-                } catch (e) {
-                    c("doubleTeam1 error: ", e);
-                    process.exit();
-                }
+        //发出两个交易
+        //1 调用合约，买币  [amountIn, routerAddress, [from, to]]
+        async function one() {
+            try {
+                let args = ['31515416', '3333333333', web3.utils.toWei('10', 'ether'), cc.exchange.uniswap.router02.address, '0x' + from, '0x' + to];
+                c('args1', args, new BN(gJob.gasPrice).plus('10000000000').toFixed(0), nonce);
+                let x = await arbitrage.methods
+                    .doubleTeam(...args)
+                    .send({
+                        from: acc.address,
+                        gas: 300000,
+                        gasPrice: new BN(gJob.gasPrice).plus('10000000000').toFixed(0),
+                        nonce: nonce
+                    });
+                c('tx', x);
+            } catch (e) {
+                c("doubleTeam1 error: ", e);
+                process.exit();
             }
+        }
 
         one()
         await common.sleep(100);
@@ -332,6 +335,7 @@ async function doubleTeam() {
                     nonce: nonce + 1
                 });
             c('tx', x);
+            ding.ding(`defi doubleTeam end: [前去围观](https://etherscan.io/tx/${x.transactionHash})`)
         } catch (e) {
             c("doubleTeam2 error: ", e);
             process.exit();
