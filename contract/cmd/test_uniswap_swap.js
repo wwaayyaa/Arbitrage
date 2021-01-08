@@ -18,6 +18,7 @@ let ca = require("../../ContractAddresses");
 
     //TOKEN
     let weth = new web3.eth.Contract(cc.token.weth.abi, cc.token.weth.address);
+    let usdt = new web3.eth.Contract(cc.token.usdt.abi, cc.token.usdt.address);
     let dai = new web3.eth.Contract(cc.token.dai.abi, cc.token.dai.address);
     let uniRoute2 = new web3.eth.Contract(cc.exchange.uniswap.router02.abi, cc.exchange.uniswap.router02.address)
     let sushiRoute2 = new web3.eth.Contract(cc.exchange.sushiswap.router02.abi, cc.exchange.sushiswap.router02.address)
@@ -48,10 +49,18 @@ let ca = require("../../ContractAddresses");
     c("--- arbitrage 测试 ---");
     try {
         c('approve');
-        await weth.methods.approve(cc.exchange.uniswap.router02.address, tradeETH).send({from:acc.address});
+        await weth.methods.approve(cc.exchange.sushiswap.router02.address, tradeETH).send({from:acc.address});
+        c('swap weth to dai');
+        await sushiRoute2.methods
+            .swapExactTokensForTokens(tradeETH, 0, [cc.token.weth.address, cc.token.usdt.address], acc.address, timestamp + 300)
+            .send({from: acc.address, gas: 5000000})
+
+        c('approve');
+        let usdtBalance = await usdt.methods.balanceOf(acc.address).call();
+        await usdt.methods.approve(cc.exchange.uniswap.router02.address, usdtBalance).send({from:acc.address});
         c('swap weth to dai');
         await uniRoute2.methods
-            .swapExactTokensForTokens(tradeETH, 0, [cc.token.weth.address, cc.token.dai.address], acc.address, timestamp + 300)
+            .swapExactTokensForTokens(usdtBalance, 0, [cc.token.usdt.address, cc.token.weth.address], acc.address, timestamp + 300)
             .send({from: acc.address, gas: 5000000})
     } catch (e) {
         c("arbitrage error: ", e);

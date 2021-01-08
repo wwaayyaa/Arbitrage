@@ -17,6 +17,7 @@
     "lodash": "^4.17.20",
     "lodash.js": "^0.0.1-security",
     "mysql2": "^2.2.5",
+    "node-binance-api": "^0.12.4",
     "sequelize": "^6.3.5",
     "socket.io": "^2.3.0",
     "truffle-privatekey-provider": "^1.5.0",

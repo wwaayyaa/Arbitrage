@@ -9,6 +9,7 @@ const db = init.initDB();
 const {web3, acc, Web3} = init.initWeb3AndAccount();
 const web3Local = init.initLocalWeb3()
 const arbitrageInfo = init.getArbitrage();
+const arbitrage = new web3.eth.Contract(arbitrageInfo.abi, arbitrageInfo.address);
 
 const c = console.log;
 const _ = require('lodash');
@@ -22,6 +23,12 @@ const ding = new common.Ding(process.env.DING_KEY);
 const {v4: uuidv4} = require('uuid');
 /* 这个库和合约不同，使用币的个数计算，例如 3eth,10btc,0.003fee 这种 */
 const calcHelper = require('./calc_comparisons.js');
+const Binance = require('node-binance-api');
+const binance = new Binance().options({
+    APIKEY: process.env.BINANCE_API_KEY,
+    APISECRET: process.env.BINANCE_API_SECRET
+});
+const ding = new common.Ding(process.env.DING_KEY);
 
 const JOB_STATUS_DOING = 1;
 const JOB_STATUS_DONE = 2;
@@ -383,6 +390,8 @@ let ETHUSDT = {
     defi: 0,
 };
 let DCDoing = false;
+let weth = new web3.eth.Contract(cc.token.weth.abi, cc.token.weth.address);
+let usdt = new web3.eth.Contract(cc.token.usdt.abi, cc.token.usdt.address);
 
 /**
  * 在cex、dex之间套利
@@ -397,7 +406,7 @@ async function lookupDCMoveBricks(
     data) {
     for (let i = 0; i < data.length; i++) {
         let p = data[i];
-        if (!(p.protocol == 'cefi' && c.exchange == 'bian' && c.master) || !(p.protocol == 'uniswap' && p.protocol == 'uniswapv2' && !c.master)) {
+        if (p.quoteA != 'eth' && p.quoteB != 'usdt') {
             continue;
         }
         if (p.protocol == 'cefi') {
@@ -417,17 +426,93 @@ async function lookupDCMoveBricks(
         if (rate < rateT) {
             continue;
         }
+        c(`[price] cefi: ${ETHUSDT.cefi}, defi: ${ETHUSDT.defi}, rate: ${rate}`);
+        ding.ding(`[price] cefi: ${ETHUSDT.cefi}, defi: ${ETHUSDT.defi}, rate: ${rate}`);
+
+        let tradeETH = 1;
+        DCDoing = true;
 
         if (ETHUSDT.defi > ETHUSDT.cefi) {
             // 525 > 500
-            // 在defi卖出eth，换成usdt，在cefi买回来。
+            // 在defi卖出eth，换成usdt，在cefi买回来eth。
+            //
+            let ethBalance = await weth.methods.balanceOf(arbitrageInfo.address).call();
+            ethBalance = new BN(ethBalance).div(new BN(10).pow(cc.token.weth.decimals)).toNumber();
+            let usdtBalance = (await binance.balance())['USDT']['available'];
+
+            if (ethBalance < tradeETH || usdtBalance < ETHUSDT.cefi * tradeETH) {
+                //余额不足
+                c(`余额不足, defi eth balance: ${ethBalance}, cefi usdt balance: ${usdtBalance}. ${ETHUSDT.defi} ${ETHUSDT.cefi}`);
+                ding.ding(`余额不足, defi eth balance: ${ethBalance}, cefi usdt balance: ${usdtBalance}. ${ETHUSDT.defi} ${ETHUSDT.cefi}`);
+                DCDoing = false;
+                return;
+            }
+            c('trade: defi sell, cefi buy.', Web3.utils.toWei(tradeETH.toString(), 'ether'), tradeETH);
+            ding.ding('trade: defi sell, cefi buy.');
+
+            try {
+                let x = await arbitrage.methods
+                    .doubleTeam(
+                        //buy
+                        '91515416', new dayjs().unix() + 20,
+                        Web3.utils.toWei(tradeETH.toString(), 'ether'), cc.exchange.uniswap.router02.address, cc.token.weth.address, cc.token.usdt.address)
+                    .send({from: acc.address, gas: 250000, gasPrice: new BN(gGasPrice).plus("50000000000").toFixed(0)});
+                c('tx', x);
+            } catch (e) {
+                c("uniswap error: ", e);
+                ding.ding('uniswap error:' + e.toString());
+                process.exit();
+            }
+            try {
+                let ret = await binance.marketBuy('ETHUSDT', tradeETH)
+            } catch (e) {
+                c("binance error: ", e);
+                ding.ding('binance error:' + e.toString());
+                process.exit();
+            }
+            //done
 
         } else {
-            // 在defi通过usdt买入eth，在cefi卖出usdt。
+            // defi 500 < cefi 550
+            // 在defi通过usdt买入eth，在cefi卖成usdt。
+            let usdtBalance = await usdt.methods.balanceOf(arbitrageInfo.address).call();
+            usdtBalance = new BN(ethBalance).div(new BN(10).pow(cc.token.usdt.decimals)).toNumber();
+            let ethBalance = (await binance.balance())['ETH']['available'];
 
+            if (ethBalance < tradeETH || usdtBalance < ETHUSDT.cefi * tradeETH) {
+                //余额不足
+                c(`余额不足, cefi eth balance: ${ethBalance}, defi usdt balance: ${usdtBalance}. ${ETHUSDT.defi} ${ETHUSDT.cefi}`);
+                ding.ding(`余额不足, cefi eth balance: ${ethBalance}, defi usdt balance: ${usdtBalance}. ${ETHUSDT.defi} ${ETHUSDT.cefi}`)
+                DCDoing = false;
+                return;
+            }
+            c('trade: defi buy, cefi sell.', new BN(tradeETH.toString()).times(ETHUSDT.cefi).times(1000000).toFixed(6), tradeETH);
+            ding.ding('trade: defi buy, cefi sell.');
+
+            try {
+                let x = await arbitrage.methods
+                    .doubleTeam(
+                        //buy
+                        '91515416', new dayjs().unix() + 20,
+                        new BN(tradeETH.toString()).times(ETHUSDT.cefi).times(1000000).toFixed(6), cc.exchange.uniswap.router02.address, cc.token.usdt.address, cc.token.weth.address)
+                    .send({from: acc.address, gas: 250000, gasPrice: new BN(gGasPrice).plus("50000000000").toFixed(0)});
+                c('tx', x);
+            } catch (e) {
+                c("uniswap error: ", e);
+                ding.ding('uniswap error:' + e.toString());
+                process.exit();
+            }
+            try {
+                let ret = await binance.marketSell('ETHUSDT', tradeETH)
+            } catch (e) {
+                c("binance error: ", e);
+                ding.ding('binance error:' + e.toString());
+                process.exit();
+            }
+            //done
         }
 
-
+        DCDoing = false;
     }
 }
 

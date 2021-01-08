@@ -18,6 +18,7 @@ const GAS = process.env.APP_ENV == 'production' ? 100000 : 5000000;
 
     //TOKEN
     let weth = new web3.eth.Contract(cc.token.weth.abi, cc.token.weth.address);
+    let usdt = new web3.eth.Contract(cc.token.usdt.abi, cc.token.usdt.address);
     let dai = new web3.eth.Contract(cc.token.dai.abi, cc.token.dai.address);
     let wbtc = new web3.eth.Contract(cc.token.wbtc.abi, cc.token.wbtc.address);
     let uniRoute2 = new web3.eth.Contract(cc.exchange.uniswap.router02.abi, cc.exchange.uniswap.router02.address)
@@ -102,10 +103,12 @@ const GAS = process.env.APP_ENV == 'production' ? 100000 : 5000000;
             c("dai: " + utils.fromWei(await dai.methods.balanceOf(acc.address).call(), 'ether'));
             c("wbtc: " + utils.fromWei(await wbtc.methods.balanceOf(acc.address).call(), 'gwei'));
             c("weth: " + utils.fromWei(await weth.methods.balanceOf(acc.address).call(), 'ether'));
+            c("usdt: " + utils.fromWei(await usdt.methods.balanceOf(acc.address).call(), 'mwei'));
             c("合约初始余额: ");
             c("eth: " + utils.fromWei(await web3.eth.getBalance(arbitrageInfo.address), 'ether'));
             c("dai: " + utils.fromWei(await dai.methods.balanceOf(arbitrageInfo.address).call(), 'ether'));
             c("weth: " + utils.fromWei(await weth.methods.balanceOf(arbitrageInfo.address).call(), 'ether'));
+            c("usdt: " + utils.fromWei(await usdt.methods.balanceOf(arbitrageInfo.address).call(), 'mwei'));
         });
     program.parse(process.argv);
 
