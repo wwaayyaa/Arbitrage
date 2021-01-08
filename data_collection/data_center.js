@@ -28,7 +28,6 @@ const binance = new Binance().options({
     APIKEY: process.env.BINANCE_API_KEY,
     APISECRET: process.env.BINANCE_API_SECRET
 });
-const ding = new common.Ding(process.env.DING_KEY);
 
 const JOB_STATUS_DOING = 1;
 const JOB_STATUS_DONE = 2;
@@ -405,6 +404,10 @@ async function lookupDCMoveBricks(
          master, balanceA, balanceB, weightA, weightB}] */
     data) {
     for (let i = 0; i < data.length; i++) {
+        // c((await binance.balance())['USDT']['available']);
+        // c((await binance.balance())['ETH']['available']);
+        // process.exit(1);
+
         let p = data[i];
         if (p.quoteA != 'eth' && p.quoteB != 'usdt') {
             continue;
@@ -424,12 +427,13 @@ async function lookupDCMoveBricks(
         let rateT = 0.015;
         let rate = Math.abs(ETHUSDT.defi / ETHUSDT.cefi - 1);
         if (rate < rateT) {
+            c(`rate : cefi: ${ETHUSDT.cefi}, defi: ${ETHUSDT.defi}, rate: ${rate}`);
             continue;
         }
         c(`[price] cefi: ${ETHUSDT.cefi}, defi: ${ETHUSDT.defi}, rate: ${rate}`);
         ding.ding(`[price] cefi: ${ETHUSDT.cefi}, defi: ${ETHUSDT.defi}, rate: ${rate}`);
 
-        let tradeETH = 1;
+        let tradeETH = 1.1;
         DCDoing = true;
 
         if (ETHUSDT.defi > ETHUSDT.cefi) {
@@ -456,7 +460,7 @@ async function lookupDCMoveBricks(
                         //buy
                         '91515416', new dayjs().unix() + 20,
                         Web3.utils.toWei(tradeETH.toString(), 'ether'), cc.exchange.uniswap.router02.address, cc.token.weth.address, cc.token.usdt.address)
-                    .send({from: acc.address, gas: 250000, gasPrice: new BN(gGasPrice).plus("50000000000").toFixed(0)});
+                    .send({from: acc.address, gas: 250000, gasPrice: new BN(gGasPrice).plus("20000000000").toFixed(0)});
                 c('tx', x);
             } catch (e) {
                 c("uniswap error: ", e);
@@ -471,12 +475,12 @@ async function lookupDCMoveBricks(
                 process.exit();
             }
             //done
-
+            ding.ding('cefi done');
         } else {
             // defi 500 < cefi 550
             // 在defi通过usdt买入eth，在cefi卖成usdt。
             let usdtBalance = await usdt.methods.balanceOf(arbitrageInfo.address).call();
-            usdtBalance = new BN(ethBalance).div(new BN(10).pow(cc.token.usdt.decimals)).toNumber();
+            usdtBalance = new BN(usdtBalance).div(new BN(10).pow(cc.token.usdt.decimals)).toNumber();
             let ethBalance = (await binance.balance())['ETH']['available'];
 
             if (ethBalance < tradeETH || usdtBalance < ETHUSDT.cefi * tradeETH) {
@@ -494,8 +498,8 @@ async function lookupDCMoveBricks(
                     .doubleTeam(
                         //buy
                         '91515416', new dayjs().unix() + 20,
-                        new BN(tradeETH.toString()).times(ETHUSDT.cefi).times(1000000).toFixed(6), cc.exchange.uniswap.router02.address, cc.token.usdt.address, cc.token.weth.address)
-                    .send({from: acc.address, gas: 250000, gasPrice: new BN(gGasPrice).plus("50000000000").toFixed(0)});
+                        new BN(tradeETH.toString()).times(ETHUSDT.cefi).times(1000000).toFixed(0), cc.exchange.uniswap.router02.address, cc.token.usdt.address, cc.token.weth.address)
+                    .send({from: acc.address, gas: 250000, gasPrice: new BN(gGasPrice).plus("20000000000").toFixed(0)});
                 c('tx', x);
             } catch (e) {
                 c("uniswap error: ", e);
@@ -510,6 +514,7 @@ async function lookupDCMoveBricks(
                 process.exit();
             }
             //done
+            ding.ding('cefi done');
         }
 
         DCDoing = false;
