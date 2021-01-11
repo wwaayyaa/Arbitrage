@@ -424,7 +424,7 @@ async function lookupDCMoveBricks(
             continue;
         }
         //
-        let rateT = 0.015;
+        let rateT = 0.01;
         let rate = Math.abs(ETHUSDT.defi / ETHUSDT.cefi - 1);
         if (rate < rateT) {
             c(`rate : cefi: ${ETHUSDT.cefi}, defi: ${ETHUSDT.defi}, rate: ${rate}`);
@@ -433,7 +433,7 @@ async function lookupDCMoveBricks(
         c(`[price] cefi: ${ETHUSDT.cefi}, defi: ${ETHUSDT.defi}, rate: ${rate}`);
         ding.ding(`[price] cefi: ${ETHUSDT.cefi}, defi: ${ETHUSDT.defi}, rate: ${rate}`);
 
-        let tradeETH = 1.1;
+        let tradeETH = 10;
         DCDoing = true;
 
         if (ETHUSDT.defi > ETHUSDT.cefi) {
@@ -460,7 +460,7 @@ async function lookupDCMoveBricks(
                         //buy
                         '91515416', new dayjs().unix() + 20,
                         Web3.utils.toWei(tradeETH.toString(), 'ether'), cc.exchange.uniswap.router02.address, cc.token.weth.address, cc.token.usdt.address)
-                    .send({from: acc.address, gas: 250000, gasPrice: new BN(gGasPrice).plus("20000000000").toFixed(0)});
+                    .send({from: acc.address, gas: 250000, gasPrice: new BN(gGasPrice).plus("40000000000").toFixed(0)});
                 c('tx', x);
             } catch (e) {
                 c("uniswap error: ", e);
@@ -475,7 +475,7 @@ async function lookupDCMoveBricks(
                 process.exit();
             }
             //done
-            ding.ding('cefi done');
+            ding.ding('defi done');
         } else {
             // defi 500 < cefi 550
             // 在defi通过usdt买入eth，在cefi卖成usdt。
@@ -499,7 +499,7 @@ async function lookupDCMoveBricks(
                         //buy
                         '91515416', new dayjs().unix() + 20,
                         new BN(tradeETH.toString()).times(ETHUSDT.cefi).times(1000000).toFixed(0), cc.exchange.uniswap.router02.address, cc.token.usdt.address, cc.token.weth.address)
-                    .send({from: acc.address, gas: 250000, gasPrice: new BN(gGasPrice).plus("20000000000").toFixed(0)});
+                    .send({from: acc.address, gas: 250000, gasPrice: new BN(gGasPrice).plus("40000000000").toFixed(0)});
                 c('tx', x);
             } catch (e) {
                 c("uniswap error: ", e);
@@ -514,7 +514,7 @@ async function lookupDCMoveBricks(
                 process.exit();
             }
             //done
-            ding.ding('cefi done');
+            ding.ding('defi done');
         }
 
         DCDoing = false;
