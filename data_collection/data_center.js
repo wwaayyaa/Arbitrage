@@ -433,7 +433,7 @@ async function lookupDCMoveBricks(
         c(`[price] cefi: ${ETHUSDT.cefi}, defi: ${ETHUSDT.defi}, rate: ${rate}`);
         ding.ding(`[price] cefi: ${ETHUSDT.cefi}, defi: ${ETHUSDT.defi}, rate: ${rate}`);
 
-        let tradeETH = 10;
+        let tradeETH = 20;
         DCDoing = true;
 
         if (ETHUSDT.defi > ETHUSDT.cefi) {
@@ -454,21 +454,28 @@ async function lookupDCMoveBricks(
             c('trade: defi sell, cefi buy.', Web3.utils.toWei(tradeETH.toString(), 'ether'), tradeETH);
             ding.ding('trade: defi sell, cefi buy.');
 
-            try {
-                let x = await arbitrage.methods
-                    .doubleTeam(
-                        //buy
-                        '91515416', new dayjs().unix() + 20,
-                        Web3.utils.toWei(tradeETH.toString(), 'ether'), cc.exchange.uniswap.router02.address, cc.token.weth.address, cc.token.usdt.address)
-                    .send({from: acc.address, gas: 250000, gasPrice: new BN(gGasPrice).plus("40000000000").toFixed(0)});
-                c('tx', x);
-            } catch (e) {
-                c("uniswap error: ", e);
-                ding.ding('uniswap error:' + e.toString());
-                process.exit();
-            }
+            async function one(){
+                try {
+                    let x = await arbitrage.methods
+                        .doubleTeam(
+                            //buy
+                            '91515416', new dayjs().unix() + 20,
+                            Web3.utils.toWei(tradeETH.toString(), 'ether'), cc.exchange.uniswap.router02.address, cc.token.weth.address, cc.token.usdt.address)
+                        .send({from: acc.address, gas: 250000, gasPrice: new BN(gGasPrice).plus("40000000000").toFixed(0)});
+                    c('tx', x);
+                    ding.ding(`defi swap [transaction](https://etherscan.io/tx/${tx.transactionHash})`);
+                } catch (e) {
+                    c("uniswap error: ", e);
+                    ding.ding('uniswap error:' + e.toString());
+                    process.exit();
+                }
+            };
+            one();
+
             try {
                 let ret = await binance.marketBuy('ETHUSDT', tradeETH)
+                c('bian ret ', ret)
+                ding.ding('bian Qty: ' + ret.cummulativeQuoteQty || 0)
             } catch (e) {
                 c("binance error: ", e);
                 ding.ding('binance error:' + e.toString());
@@ -493,21 +500,28 @@ async function lookupDCMoveBricks(
             c('trade: defi buy, cefi sell.', new BN(tradeETH.toString()).times(ETHUSDT.cefi).times(1000000).toFixed(6), tradeETH);
             ding.ding('trade: defi buy, cefi sell.');
 
-            try {
-                let x = await arbitrage.methods
-                    .doubleTeam(
-                        //buy
-                        '91515416', new dayjs().unix() + 20,
-                        new BN(tradeETH.toString()).times(ETHUSDT.cefi).times(1000000).toFixed(0), cc.exchange.uniswap.router02.address, cc.token.usdt.address, cc.token.weth.address)
-                    .send({from: acc.address, gas: 250000, gasPrice: new BN(gGasPrice).plus("40000000000").toFixed(0)});
-                c('tx', x);
-            } catch (e) {
-                c("uniswap error: ", e);
-                ding.ding('uniswap error:' + e.toString());
-                process.exit();
+            async function one(){
+                try {
+                    let x = await arbitrage.methods
+                        .doubleTeam(
+                            //buy
+                            '91515416', new dayjs().unix() + 20,
+                            new BN(tradeETH.toString()).times(ETHUSDT.cefi).times(1000000).toFixed(0), cc.exchange.uniswap.router02.address, cc.token.usdt.address, cc.token.weth.address)
+                        .send({from: acc.address, gas: 250000, gasPrice: new BN(gGasPrice).plus("40000000000").toFixed(0)});
+                    c('tx', x);
+                    ding.ding(`defi swap [transaction](https://etherscan.io/tx/${tx.transactionHash})`);
+                } catch (e) {
+                    c("uniswap error: ", e);
+                    ding.ding('uniswap error:' + e.toString());
+                    process.exit();
+                }
             }
+            one();
+
             try {
                 let ret = await binance.marketSell('ETHUSDT', tradeETH)
+                c('bian ret ', ret)
+                ding.ding('bian Qty: ' + ret.cummulativeQuoteQty || 0)
             } catch (e) {
                 c("binance error: ", e);
                 ding.ding('binance error:' + e.toString());
