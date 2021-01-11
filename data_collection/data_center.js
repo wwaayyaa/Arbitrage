@@ -424,7 +424,7 @@ async function lookupDCMoveBricks(
             continue;
         }
         //
-        let rateT = 0.01;
+        let rateT = 0.015;
         let rate = Math.abs(ETHUSDT.defi / ETHUSDT.cefi - 1);
         if (rate < rateT) {
             c(`rate : cefi: ${ETHUSDT.cefi}, defi: ${ETHUSDT.defi}, rate: ${rate}`);
@@ -447,7 +447,7 @@ async function lookupDCMoveBricks(
             if (ethBalance < tradeETH || usdtBalance < ETHUSDT.cefi * tradeETH) {
                 //余额不足
                 c(`余额不足, defi eth balance: ${ethBalance}, cefi usdt balance: ${usdtBalance}. ${ETHUSDT.defi} ${ETHUSDT.cefi}`);
-                ding.ding(`余额不足, defi eth balance: ${ethBalance}, cefi usdt balance: ${usdtBalance}. ${ETHUSDT.defi} ${ETHUSDT.cefi}`);
+                // ding.ding(`余额不足, defi eth balance: ${ethBalance}, cefi usdt balance: ${usdtBalance}. ${ETHUSDT.defi} ${ETHUSDT.cefi}`);
                 DCDoing = false;
                 return;
             }
@@ -486,7 +486,7 @@ async function lookupDCMoveBricks(
             if (ethBalance < tradeETH || usdtBalance < ETHUSDT.cefi * tradeETH) {
                 //余额不足
                 c(`余额不足, cefi eth balance: ${ethBalance}, defi usdt balance: ${usdtBalance}. ${ETHUSDT.defi} ${ETHUSDT.cefi}`);
-                ding.ding(`余额不足, cefi eth balance: ${ethBalance}, defi usdt balance: ${usdtBalance}. ${ETHUSDT.defi} ${ETHUSDT.cefi}`)
+                // ding.ding(`余额不足, cefi eth balance: ${ethBalance}, defi usdt balance: ${usdtBalance}. ${ETHUSDT.defi} ${ETHUSDT.cefi}`)
                 DCDoing = false;
                 return;
             }
