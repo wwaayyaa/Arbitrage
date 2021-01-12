@@ -431,7 +431,6 @@ async function lookupDCMoveBricks(
             continue;
         }
         c(`[price] cefi: ${ETHUSDT.cefi}, defi: ${ETHUSDT.defi}, rate: ${rate}`);
-        ding.ding(`[price] cefi: ${ETHUSDT.cefi}, defi: ${ETHUSDT.defi}, rate: ${rate}`);
 
         let tradeETH = 20;
         DCDoing = true;
@@ -451,6 +450,7 @@ async function lookupDCMoveBricks(
                 DCDoing = false;
                 return;
             }
+            ding.ding(`[price] cefi: ${ETHUSDT.cefi}, defi: ${ETHUSDT.defi}, rate: ${rate}`);
             c('trade: defi sell, cefi buy.', Web3.utils.toWei(tradeETH.toString(), 'ether'), tradeETH);
             ding.ding('trade: defi sell, cefi buy.');
 
@@ -499,6 +499,7 @@ async function lookupDCMoveBricks(
                 DCDoing = false;
                 return;
             }
+            ding.ding(`[price] cefi: ${ETHUSDT.cefi}, defi: ${ETHUSDT.defi}, rate: ${rate}`);
             c('trade: defi buy, cefi sell.', new BN(tradeETH.toString()).times(ETHUSDT.cefi).times(1000000).toFixed(6), tradeETH);
             ding.ding('trade: defi buy, cefi sell.');
 
