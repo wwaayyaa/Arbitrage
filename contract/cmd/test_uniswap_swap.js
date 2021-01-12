@@ -35,9 +35,9 @@ const dayjs = require('dayjs');
     let uniPrice = reserves[0] / reserves[1];
     c("uniswap eth-dai:", uniPrice);
 
-    c('搞10个weth');
-    let warpETHContract = new web3.eth.Contract(cc.wrapETH.abi,cc.wrapETH.address);
-    await warpETHContract.methods.deposit().send({from: acc.address, value: tradeETH, gas: 5000000});
+    // c('搞10个weth');
+    // let warpETHContract = new web3.eth.Contract(cc.wrapETH.abi,cc.wrapETH.address);
+    // await warpETHContract.methods.deposit().send({from: acc.address, value: tradeETH, gas: 5000000});
 
     c("账户初始余额: ");
     c("eth: " + utils.fromWei(await web3.eth.getBalance(acc.address), 'ether'));
@@ -67,7 +67,7 @@ const dayjs = require('dayjs');
             .doubleTeam(
                 //buy
                 '91515416', new dayjs().unix() + 20,
-                0, cc.exchange.uniswap.router02.address, cc.token.usdt.address, cc.token.weth.address)
+                '5000000', cc.exchange.uniswap.router02.address, cc.token.usdt.address, cc.token.weth.address)
             .send({from: acc.address, gas: 250000, gasPrice: new BN(50000000000).plus("40000000000").toFixed(0)});
 
         // c('approve');
