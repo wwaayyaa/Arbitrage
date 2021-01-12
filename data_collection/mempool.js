@@ -293,7 +293,7 @@ async function doubleTeam() {
             await common.sleep(50);
             continue;
         }
-        ding.ding('defi doubleTeam begin: ' + web3.utils.fromWei(gJob.value, 'ether'));
+        ding.ding(`defi doubleTeam target: ${web3.utils.fromWei(gJob.value, 'ether')}, [transaction](https://cn.etherscan.com/tx/${gJob.hash})`);
 
         let nonce = await web3WS.eth.getTransactionCount(acc.address);
         let [from, to] = gJob.decodeData.inputs[1];
@@ -314,6 +314,7 @@ async function doubleTeam() {
                         nonce: nonce
                     });
                 c('tx', x);
+                ding.ding(`defi doubleTeam first: [前去围观](https://cn.etherscan.com/tx/${x.transactionHash})`)
             } catch (e) {
                 c("doubleTeam1 error: ", e);
                 process.exit();
