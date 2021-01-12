@@ -50,17 +50,31 @@ const GAS = process.env.APP_ENV == 'production' ? 100000 : 5000000;
             }
         });
 
-    async function deposit(amount) {
-        await depositOrWithdraw('deposit', amount);
+    async function deposit(token, amount) {
+        await depositOrWithdraw('deposit', token, amount);
     }
 
-    async function withdraw(amount) {
-        await depositOrWithdraw('withdraw', amount);
+    async function withdraw(token, amount) {
+        await depositOrWithdraw('withdraw', token, amount);
     }
 
-    async function depositOrWithdraw(depoistOrWithdraw, amount) {
+    async function depositOrWithdraw(depoistOrWithdraw, _token, amount) {
+        let token = null;
+        switch (_token) {
+            case '':
+            case 'weth':
+                token = weth;
+                break;
+            case 'usdt':
+                token = usdt;
+                break;
+            default:
+                c('unknown token');
+                return;
+        }
+
         if (depoistOrWithdraw == 'deposit') {
-            await weth.methods.transfer(arbitrageInfo.address, web3.utils.toWei(amount, 'ether')).send({
+            await token.methods.transfer(arbitrageInfo.address, web3.utils.toWei(amount, 'ether')).send({
                 from: acc.address,
                 gas: GAS,
                 gasPrice: gGasPrice
@@ -68,14 +82,14 @@ const GAS = process.env.APP_ENV == 'production' ? 100000 : 5000000;
         } else if (depoistOrWithdraw = 'withdraw') {
             if (amount == 0) {
                 await arbitrage.methods
-                    .withdraw(cc.token.weth.address)
+                    .withdraw(cc.token[_token].address)
                     .send({
                         from: acc.address, gas: GAS,
                         gasPrice: gGasPrice
                     });
             } else {
                 await arbitrage.methods
-                    .withdrawN(cc.token.weth.address, web3.utils.toWei(amount, 'ether'))
+                    .withdrawN(cc.token[_token].address, web3.utils.toWei(amount, 'ether'))
                     .send({
                         from: acc.address, gas: GAS,
                         gasPrice: gGasPrice
@@ -87,11 +101,11 @@ const GAS = process.env.APP_ENV == 'production' ? 100000 : 5000000;
     }
 
     program.version('0.0.1')
-        .command('deposit <amount>')
+        .command('deposit <token> <amount>')
         .description("deposit/withdraw to/from arbitrage contract")
         .action(deposit);
     program.version('0.0.1')
-        .command('withdraw <amount>')
+        .command('withdraw <token> <amount>')
         .description("deposit/withdraw to/from arbitrage contract")
         .action(withdraw);
     program.version('0.0.1')
@@ -110,6 +124,40 @@ const GAS = process.env.APP_ENV == 'production' ? 100000 : 5000000;
             c("weth: " + utils.fromWei(await weth.methods.balanceOf(arbitrageInfo.address).call(), 'ether'));
             c("usdt: " + utils.fromWei(await usdt.methods.balanceOf(arbitrageInfo.address).call(), 'mwei'));
         });
+
+    program.version('0.0.1')
+        .command('approve <token> <spender> <amount>')
+        .description("approve <token> <spender> <amount>")
+        .action(async function (token, spender, amount) {
+            if (token == '0xdac17f958d2ee523a2206206994597c13d831ec7') {
+                await arbitrage.methods
+                    .approveUSDT(token, spender, amount)
+                    .send({
+                        from: acc.address,
+                        gas: GAS,
+                        gasPrice: gGasPrice
+                    });
+            } else {
+                await arbitrage.methods
+                    .approve(token, spender, amount)
+                    .send({
+                        from: acc.address,
+                        gas: GAS,
+                        gasPrice: gGasPrice
+                    });
+            }
+
+        });
+
+    program.version('0.0.1')
+        .command('allowance <token> <spender>')
+        .description("allowance <token> <spender>")
+        .action(async function (token, spender) {
+            c(await arbitrage.methods
+                .allowance(token, spender)
+                .call());
+        });
+
     program.parse(process.argv);
 
 })();

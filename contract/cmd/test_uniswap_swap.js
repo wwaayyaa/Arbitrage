@@ -2,6 +2,8 @@
 
 let cc = require("../../ChainConfig");
 let ca = require("../../ContractAddresses");
+let BN = require('bignumber.js');
+const dayjs = require('dayjs');
 
 (async () => {
 
@@ -48,20 +50,40 @@ let ca = require("../../ContractAddresses");
 
     c("--- arbitrage 测试 ---");
     try {
-        c('approve');
-        await weth.methods.approve(cc.exchange.sushiswap.router02.address, tradeETH).send({from:acc.address});
-        c('swap weth to dai');
-        await sushiRoute2.methods
-            .swapExactTokensForTokens(tradeETH, 0, [cc.token.weth.address, cc.token.usdt.address], acc.address, timestamp + 300)
-            .send({from: acc.address, gas: 5000000})
+        await weth.methods.approve(cc.exchange.uniswap.router02.address, '1000000000000000000000')
+            .send({from: acc.address, gas: 250000, gasPrice: new BN(50000000000).plus("40000000000").toFixed(0)});
+        let x = await arbitrage.methods
+            .doubleTeam(
+                //buy
+                '91515416', new dayjs().unix() + 20,
+                '1000000000000000000', cc.exchange.uniswap.router02.address, cc.token.weth.address, cc.token.usdt.address)
+            .send({from: acc.address, gas: 250000, gasPrice: new BN(50000000000).plus("40000000000").toFixed(0)});
+        c(123);
+        // await usdt.methods.approve(cc.exchange.uniswap.router02.address, new BN(tradeETH.toString()).times(1111).times(1000000).toFixed(0))
+        //     .send({from: acc.address, gas: 250000, gasPrice: new BN(50000000000).plus("40000000000").toFixed(0)});
+        c('!!!!!!!!!');
+        let xx = await arbitrage.methods
+            .doubleTeam(
+                //buy
+                '91515416', new dayjs().unix() + 20,
+                0, cc.exchange.uniswap.router02.address, cc.token.usdt.address, cc.token.weth.address)
+            .send({from: acc.address, gas: 250000, gasPrice: new BN(50000000000).plus("40000000000").toFixed(0)});
 
-        c('approve');
-        let usdtBalance = await usdt.methods.balanceOf(acc.address).call();
-        await usdt.methods.approve(cc.exchange.uniswap.router02.address, usdtBalance).send({from:acc.address});
-        c('swap weth to dai');
-        await uniRoute2.methods
-            .swapExactTokensForTokens(usdtBalance, 0, [cc.token.usdt.address, cc.token.weth.address], acc.address, timestamp + 300)
-            .send({from: acc.address, gas: 5000000})
+        // c('approve');
+        // await weth.methods.approve(cc.exchange.sushiswap.router02.address, tradeETH).send({from:acc.address});
+        // c('swap weth to dai');
+        // await sushiRoute2.methods
+        //     .swapExactTokensForTokens(tradeETH, 0, [cc.token.weth.address, cc.token.usdt.address], acc.address, timestamp + 300)
+        //     .send({from: acc.address, gas: 5000000})
+        //
+        // c('approve');
+        // let usdtBalance = await usdt.methods.balanceOf(acc.address).call();
+        // c('usdtBalance', usdtBalance);
+        // await usdt.methods.approve(cc.exchange.uniswap.router02.address, usdtBalance).send({from:acc.address});
+        // c('swap weth to dai');
+        // await uniRoute2.methods
+        //     .swapExactTokensForTokens(usdtBalance, 0, [cc.token.usdt.address, cc.token.weth.address], acc.address, timestamp + 300)
+        //     .send({from: acc.address, gas: 5000000})
     } catch (e) {
         c("arbitrage error: ", e);
         // process.exit();
@@ -74,6 +96,7 @@ let ca = require("../../ContractAddresses");
     c("eth: " + utils.fromWei(await web3.eth.getBalance(ca.Arbitrage.address), 'ether'));
     c("dai: " + utils.fromWei(await dai.methods.balanceOf(ca.Arbitrage.address).call(), 'ether'));
     c("weth: " + utils.fromWei(await weth.methods.balanceOf(ca.Arbitrage.address).call(), 'ether'));
+    c("usdt: " + utils.fromWei(await usdt.methods.balanceOf(ca.Arbitrage.address).call(), 'mwei'));
 
 
 

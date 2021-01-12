@@ -10,6 +10,10 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./utils/Withdrawable.sol";
 
+interface IUSDT {
+    function approve(address _spender, uint _value) external;
+}
+
 contract Arbitrage is Withdrawable {
     using SafeERC20 for IERC20;
     //    event EStep(uint n);
@@ -118,7 +122,9 @@ contract Arbitrage is Withdrawable {
             amountIn = IERC20(from).balanceOf(address(this));
         }
         require(amountIn > 0, "no");
-        IERC20(from).approve(router, amountIn);
+        if (IERC20(from).allowance(address(this), router) < amountIn) {
+            IERC20(from).approve(router, amountIn);
+        }
 
         delete path;
         //3000+gas
@@ -126,6 +132,18 @@ contract Arbitrage is Withdrawable {
         path.push(to);
         //大概90000gas
         IUniswapV2Router01(router).swapExactTokensForTokens(amountIn, 0, path, address(this), deadline);
+    }
+
+    function approve(address tokenAddr, address spender, uint256 amount) public {
+        IERC20(tokenAddr).approve(spender, amount);
+    }
+
+    function approveUSDT(address tokenAddr, address spender, uint256 amount) public {
+        IUSDT(tokenAddr).approve(spender, amount);
+    }
+
+    function allowance(address tokenAddr, address spender) public view returns (uint256){
+        return IERC20(tokenAddr).allowance(address(this), spender);
     }
 
     function withdrawN(address _assetAddress, uint amount) public onlyOwner {
