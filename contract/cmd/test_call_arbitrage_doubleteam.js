@@ -42,14 +42,14 @@ let ca = require("../../ContractAddresses");
         let x = await arbitrage.methods
             .doubleTeam(
                 //buy
-                '31515416', '3333333333',
-                '1000000000000000000', cc.exchange.uniswap.router02.address, '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', '0x6b175474e89094c44da98b954eedeac495271d0f'
+                // '31515416', '3333333333',
+                // '1000000000000000000', cc.exchange.uniswap.router02.address, '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', '0x6b175474e89094c44da98b954eedeac495271d0f'
 
                 //sell
-                // '31515416', '3333333333',
-                // '0', cc.exchange.uniswap.router02.address, '0x6b175474e89094c44da98b954eedeac495271d0f', '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'
+                '31515416', '3333333333',
+                '0', cc.exchange.uniswap.router02.address, '0x6b175474e89094c44da98b954eedeac495271d0f', '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'
             )
-            .send({from: acc.address, gas: 5000000});
+            .send({from: acc.address, gas: 500000, gasPrice: '000000000'});
         c('tx', x);
     } catch (e) {
         c("arbitrage error: ", e);
