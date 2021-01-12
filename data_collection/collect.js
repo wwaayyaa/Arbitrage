@@ -347,7 +347,7 @@ async function collectCeFi(exchangeName, quoteName, callback) {
             ]);
         }
 
-        await common.sleep(15000);
+        await common.sleep(10000);
     }
 }
 

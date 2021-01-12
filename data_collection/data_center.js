@@ -463,11 +463,12 @@ async function lookupDCMoveBricks(
                             Web3.utils.toWei(tradeETH.toString(), 'ether'), cc.exchange.uniswap.router02.address, cc.token.weth.address, cc.token.usdt.address)
                         .send({from: acc.address, gas: 250000, gasPrice: new BN(gGasPrice).plus("40000000000").toFixed(0)});
                     c('tx', x);
-                    ding.ding(`defi swap [transaction](https://etherscan.io/tx/${tx.transactionHash})`);
+                    ding.ding(`defi swap [transaction](https://etherscan.io/tx/${x.transactionHash})`);
+                    DCDoing = false;
                 } catch (e) {
                     c("uniswap error: ", e);
-                    ding.ding('uniswap error:' + e.toString());
                     await binance.marketSell('ETHUSDT', tradeETH)
+                    await ding.ding('uniswap error:' + e.toString());
                     process.exit();
                 }
             };
@@ -510,11 +511,12 @@ async function lookupDCMoveBricks(
                             new BN(tradeETH.toString()).times(ETHUSDT.cefi).times(1000000).toFixed(0), cc.exchange.uniswap.router02.address, cc.token.usdt.address, cc.token.weth.address)
                         .send({from: acc.address, gas: 250000, gasPrice: new BN(gGasPrice).plus("40000000000").toFixed(0)});
                     c('tx', x);
-                    ding.ding(`defi swap [transaction](https://etherscan.io/tx/${tx.transactionHash})`);
+                    ding.ding(`defi swap [transaction](https://etherscan.io/tx/${x.transactionHash})`);
+                    DCDoing = false;
                 } catch (e) {
                     c("uniswap error: ", e);
-                    ding.ding('uniswap error:' + e.toString());
                     await binance.marketBuy('ETHUSDT', tradeETH)
+                    await ding.ding('uniswap error:' + e.toString());
                     process.exit();
                 }
             }
@@ -533,7 +535,6 @@ async function lookupDCMoveBricks(
             ding.ding('defi done');
         }
 
-        DCDoing = false;
     }
 }
 
