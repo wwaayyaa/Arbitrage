@@ -467,6 +467,7 @@ async function lookupDCMoveBricks(
                 } catch (e) {
                     c("uniswap error: ", e);
                     ding.ding('uniswap error:' + e.toString());
+                    await binance.marketSell('ETHUSDT', tradeETH)
                     process.exit();
                 }
             };
@@ -513,6 +514,7 @@ async function lookupDCMoveBricks(
                 } catch (e) {
                     c("uniswap error: ", e);
                     ding.ding('uniswap error:' + e.toString());
+                    await binance.marketBuy('ETHUSDT', tradeETH)
                     process.exit();
                 }
             }
