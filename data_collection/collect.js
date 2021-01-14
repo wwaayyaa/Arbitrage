@@ -336,7 +336,7 @@ async function collectCeFi(exchangeName, quoteName, callback) {
             if (callback) {
                 await callback(error);
             }
-            await common.sleep(15000);
+            await common.sleep(3000);
             continue;
         }
 
@@ -347,7 +347,7 @@ async function collectCeFi(exchangeName, quoteName, callback) {
             ]);
         }
 
-        await common.sleep(5000);
+        await common.sleep(3000);
     }
 }
 
