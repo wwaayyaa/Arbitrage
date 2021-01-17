@@ -459,9 +459,9 @@ async function lookupDCMoveBricks(
                     let x = await arbitrage.methods
                         .doubleTeam(
                             //buy
-                            '91515416', new dayjs().unix() + 20,
+                            '91515416', new dayjs().unix() + 30,
                             Web3.utils.toWei(tradeETH.toString(), 'ether'), cc.exchange.uniswap.router02.address, cc.token.weth.address, cc.token.usdt.address)
-                        .send({from: acc.address, gas: 250000, gasPrice: new BN(gGasPrice).plus("40000000000").toFixed(0)});
+                        .send({from: acc.address, gas: 250000, gasPrice: new BN(gGasPrice).plus("50000000000").toFixed(0)});
                     c('tx', x);
                     ding.ding(`defi swap [transaction](https://etherscan.io/tx/${x.transactionHash})`);
                     DCDoing = false;
@@ -508,9 +508,9 @@ async function lookupDCMoveBricks(
                     let x = await arbitrage.methods
                         .doubleTeam(
                             //buy
-                            '91515416', new dayjs().unix() + 20,
+                            '91515416', new dayjs().unix() + 30,
                             new BN(tradeETH.toString()).times(ETHUSDT.cefi).times(1000000).toFixed(0), cc.exchange.uniswap.router02.address, cc.token.usdt.address, cc.token.weth.address)
-                        .send({from: acc.address, gas: 250000, gasPrice: new BN(gGasPrice).plus("40000000000").toFixed(0)});
+                        .send({from: acc.address, gas: 250000, gasPrice: new BN(gGasPrice).plus("50000000000").toFixed(0)});
                     c('tx', x);
                     ding.ding(`defi swap [transaction](https://etherscan.io/tx/${x.transactionHash})`);
                     DCDoing = false;

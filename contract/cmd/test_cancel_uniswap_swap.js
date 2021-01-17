@@ -60,20 +60,20 @@ let ca = require("../../ContractAddresses");
     // }
 
     c("--- 2 发出买币诱导交易 ---");
-    let nonce = await web3.eth.getTransactionCount(acc.address);
-    c(`nonce ${nonce}`);
-
-    async function two() {
-        try {
-            await uniRoute2.methods
-                .swapExactTokensForTokens(tradeAmount, 0, [cc.token.weth.address, cc.token.dai.address], acc.address, timestamp + 300)
-                .send({from: acc.address, gas: 150000, nonce: nonce, gasPrice: web3.utils.toWei('50', 'gwei')})
-        } catch (e) {
-            c("发出买币诱导交易 error: ", e);
-            // process.exit();
-        }
-    }
-    two();
+    // let nonce = await web3.eth.getTransactionCount(acc.address);
+    // c(`nonce ${nonce}`);
+    //
+    // async function two() {
+    //     try {
+    //         await uniRoute2.methods
+    //             .swapExactTokensForTokens(tradeAmount, 0, [cc.token.weth.address, cc.token.dai.address], acc.address, timestamp + 300)
+    //             .send({from: acc.address, gas: 150000, nonce: nonce, gasPrice: web3.utils.toWei('50', 'gwei')})
+    //     } catch (e) {
+    //         c("发出买币诱导交易 error: ", e);
+    //         // process.exit();
+    //     }
+    // }
+    // two();
 
     await common.sleep(3000);
 
@@ -83,7 +83,7 @@ let ca = require("../../ContractAddresses");
             from: acc.address,
             to: acc.address,
             value: '0',
-            nonce: nonce,
+            nonce: 137,
             gasPrice: web3.utils.toWei('80', 'gwei'),
             gas: 40000,
         })
