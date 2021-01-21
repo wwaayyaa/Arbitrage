@@ -464,6 +464,7 @@ async function lookupDCMoveBricks(
                         .send({from: acc.address, gas: 250000, gasPrice: new BN(gGasPrice).plus("50000000000").toFixed(0)});
                     c('tx', x);
                     ding.ding(`defi swap [transaction](https://etherscan.io/tx/${x.transactionHash})`);
+                    await common.sleep(20 * 1000);
                     DCDoing = false;
                 } catch (e) {
                     c("uniswap error: ", e);
@@ -513,6 +514,7 @@ async function lookupDCMoveBricks(
                         .send({from: acc.address, gas: 250000, gasPrice: new BN(gGasPrice).plus("50000000000").toFixed(0)});
                     c('tx', x);
                     ding.ding(`defi swap [transaction](https://etherscan.io/tx/${x.transactionHash})`);
+                    await common.sleep(20 * 1000);
                     DCDoing = false;
                 } catch (e) {
                     c("uniswap error: ", e);
